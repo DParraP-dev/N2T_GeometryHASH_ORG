@@ -1,0 +1,85 @@
+// ============================================================================
+//  GeometryHash  -  Juego "Hack Dash"
+//  Organizacion de Computadores - 2026
+//
+//  Archivo : Renderer.jack
+//  Clase   : Renderer
+//  Rol     : Capa de abstraccion sobre la libreria Screen del OS de Jack.
+//            Centraliza TODO el dibujado del juego en un unico lugar.
+//
+//  Por que existe esta clase:
+//    El diferenciador del juego es la INVERSION DE COLORES en tiempo real
+//    (fondo blanco/elementos negros  <->  fondo negro/elementos blancos).
+//    Para que esa inversion sea trivial y no haya que tocar cada clase,
+//    Renderer es la UNICA fuente de verdad sobre "cual es el color de
+//    tinta (elementos) y cual es el color de fondo" en cada momento.
+//
+//    La pantalla Hack mide 256 filas (alto) x 512 columnas (ancho) y es
+//    monocromatica: Screen.setColor(true) pinta negro, false pinta blanco.
+// ============================================================================
+
+class Renderer {
+
+    field boolean inverted;   // false = fondo blanco / tinta negra (Fase 1)
+                              // true  = fondo negro  / tinta blanca (Fase 2)
+
+    /** Crea el renderer en el esquema de color inicial (Fase 1). */
+    constructor Renderer new() {
+        let inverted = false;
+        return this;
+    }
+
+    /** Alterna el esquema de color. Lo invoca Game al cruzar un portal. */
+    method void toggleInvert() {
+        let inverted = ~inverted;   // '~' sobre un boolean = NOT logico
+        return;
+    }
+
+    /** Devuelve true si el juego esta en modo invertido (Fase 2). */
+    method boolean isInverted() {
+        return inverted;
+    }
+
+    /** Color de los ELEMENTOS (cubo, obstaculos, suelo, texto). */
+    method boolean inkColor() {
+        // No invertido: tinta negra (true). Invertido: tinta blanca (false).
+        return ~inverted;
+    }
+
+    /** Color del FONDO. Es el opuesto a la tinta. */
+    method boolean bgColor() {
+        return inverted;
+    }
+
+    /** Pinta toda la pantalla con el color de fondo actual. */
+    method void clearBackground() {
+        // clearScreen deja todo en blanco; si el fondo es negro, lo
+        // rellenamos manualmente con un rectangulo del tamano completo.
+        do Screen.clearScreen();
+        if (inverted) {
+            do Screen.setColor(true);          // negro
+            do Screen.drawRectangle(0, 0, 511, 255);
+        }
+        return;
+    }
+
+    /** Dibuja un rectangulo relleno usando el color de la TINTA. */
+    method void fillRect(int x1, int y1, int x2, int y2) {
+        do Screen.setColor(inkColor());
+        do Screen.drawRectangle(x1, y1, x2, y2);
+        return;
+    }
+
+    /** Borra (pinta con el FONDO) un rectangulo. Util para limpiar sprites. */
+    method void eraseRect(int x1, int y1, int x2, int y2) {
+        do Screen.setColor(bgColor());
+        do Screen.drawRectangle(x1, y1, x2, y2);
+        return;
+    }
+
+    /** Libera el objeto. */
+    method void dispose() {
+        do Memory.deAlloc(this);
+        return;
+    }
+}
