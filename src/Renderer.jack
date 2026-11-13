@@ -63,17 +63,55 @@ class Renderer {
         return;
     }
 
+    // ------------------------------------------------------------------
+    //  Recorte (clamp) de coordenadas.
+    //
+    //  IMPORTANTE: Screen.drawRectangle del OS de Jack es ESTRICTO. Si
+    //  cualquier coordenada cae fuera de la pantalla (x: 0..511, y: 0..255)
+    //  lanza el error "ERR9" (Illegal rectangle coordinates) y detiene el
+    //  programa. Como el cubo puede saltar por encima del borde superior y
+    //  los obstaculos salen por los bordes laterales, TODO dibujo pasa por
+    //  aqui para recortarse al area visible antes de llamar al OS.
+    // ------------------------------------------------------------------
+
+    /** Limita un valor X al rango horizontal valido [0, 511]. */
+    method int clampX(int v) {
+        if (v < 0)   { return 0; }
+        if (v > 511) { return 511; }
+        return v;
+    }
+
+    /** Limita un valor Y al rango vertical valido [0, 255]. */
+    method int clampY(int v) {
+        if (v < 0)   { return 0; }
+        if (v > 255) { return 255; }
+        return v;
+    }
+
+    /**
+     * Dibuja un rectangulo (relleno) ya recortado a la pantalla.
+     * Si el rectangulo queda COMPLETAMENTE fuera, no dibuja nada.
+     */
+    method void safeRect(int x1, int y1, int x2, int y2) {
+        // Descartar si esta por completo fuera del area visible.
+        if ((x2 < 0) | (x1 > 511) | (y2 < 0) | (y1 > 255)) {
+            return;
+        }
+        do Screen.drawRectangle(clampX(x1), clampY(y1), clampX(x2), clampY(y2));
+        return;
+    }
+
     /** Dibuja un rectangulo relleno usando el color de la TINTA. */
     method void fillRect(int x1, int y1, int x2, int y2) {
         do Screen.setColor(inkColor());
-        do Screen.drawRectangle(x1, y1, x2, y2);
+        do safeRect(x1, y1, x2, y2);
         return;
     }
 
     /** Borra (pinta con el FONDO) un rectangulo. Util para limpiar sprites. */
     method void eraseRect(int x1, int y1, int x2, int y2) {
         do Screen.setColor(bgColor());
-        do Screen.drawRectangle(x1, y1, x2, y2);
+        do safeRect(x1, y1, x2, y2);
         return;
     }
 

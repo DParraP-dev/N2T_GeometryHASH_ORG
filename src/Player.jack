@@ -69,6 +69,13 @@ class Player {
         let vy = vy + gravity;   // la gravedad siempre tira hacia el suelo
         let y = y + vy;          // actualiza posicion vertical
 
+        // Tope superior: el cubo no puede salirse por el techo de la
+        // pantalla (y < 0). Si lo alcanza, se detiene ahi y empieza a caer.
+        if (y < 0) {
+            let y = 0;
+            let vy = 0;
+        }
+
         // Colision con el suelo: no dejar que atraviese la superficie.
         if ((y + size) > groundY) {
             let y = groundY - size;

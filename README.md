@@ -73,6 +73,7 @@ El proyecto sigue un diseño **orientado a objetos con una clase por archivo** (
 2. **Color centralizado en `Renderer`.** Ninguna clase conoce el color concreto; piden "pinta tinta" o "pinta fondo". Invertir toda la paleta es **un solo `toggleInvert()`**.
 3. **Reciclaje de objetos.** Los obstáculos no se crean/destruyen; se reposicionan. La RAM de la plataforma Hack es muy limitada.
 4. **Input no bloqueante.** Se usa `Keyboard.keyPressed()` (no `readChar`/`readLine`), para que el bucle nunca se detenga — requisito explícito de "Interactividad por Teclado".
+5. **Recorte de coordenadas (clamping) en `Renderer`.** `Screen.drawRectangle` del OS de Jack es estricto: si una coordenada cae fuera de `[0,511]×[0,255]` aborta con el error `ERR9`. Como el cubo salta cerca del techo y los obstáculos salen por los bordes, `Renderer.safeRect()` recorta toda coordenada al área visible (y descarta lo que queda totalmente fuera) antes de llamar al OS. Centralizarlo en `Renderer` evita repetir esa lógica en cada clase.
 
 ---
 
