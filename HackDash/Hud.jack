@@ -4,28 +4,47 @@
 //
 //  Archivo : Hud.jack
 //  Clase   : Hud
-//  Rol     : Interfaz en pantalla (marcador y mensajes). Sabe DONDE va cada
-//            texto; el COMO se dibuja lo resuelve Font.
+//  Rol     : Interfaz en pantalla (marcador, velocidad, fase y carteles).
+//            Sabe DONDE va cada texto; el COMO se dibuja lo resuelve Font.
 //
-//  Regla de rendimiento: el marcador NO se redibuja en cada tick. Game llama
-//  a drawScore() solo cuando el puntaje cambia, y los rotulos fijos se
-//  pintan una vez por escena. Asi el bucle principal no gasta ciclos ni
-//  memoria en texto que no cambio.
+//  Memoria: todos los textos fijos se crean UNA vez en el constructor y se
+//  reutilizan. El Memory.alloc del OS no fusiona bloques libres, asi que
+//  crear y liberar Strings en cada escena iria fragmentando el heap.
+//
+//  Rendimiento: nada se redibuja en cada tick. Game llama a drawScore() o
+//  drawScene() solo cuando un valor cambia.
 // ============================================================================
 
 class Hud {
 
     field Renderer renderer;
+    field String sPoints, sSpeed, sStage, sFloor, sRoof, sJump, sGameOver;
 
     constructor Hud new(Renderer r) {
         let renderer = r;
+        let sPoints = "PUNTOS";
+        let sSpeed = "VELOCIDAD";
+        let sStage = "FASE";
+        let sFloor = "SUELO";
+        let sRoof = "TECHO INVERTIDO";
+        let sJump = "ESPACIO: SALTAR";
+        let sGameOver = "GAME OVER";
         return this;
     }
 
-    /** Dibuja los rotulos fijos y los valores actuales (tras limpiar). */
-    method void drawAll(int score) {
-        do Font.drawLabel(renderer, "PUNTOS", 8, 4, 2);
+    /** Dibuja toda la interfaz de una escena recien limpiada. */
+    method void drawScene(int score, int level, int stage, boolean roof) {
+        var int x;
+        do Font.drawText(renderer, sPoints, 8, 4, 2);
         do drawScore(score);
+        do Font.drawText(renderer, sSpeed, 400, 4, 2);
+        do Font.drawNumber(renderer, level, 478, 4, 2);
+        // Barra inferior: fase actual y control.
+        let x = Font.drawText(renderer, sStage, 8, 242, 2);
+        let x = Font.drawNumber(renderer, stage, x + 8, 242, 2);
+        if (roof) { do Font.drawText(renderer, sRoof, x + 16, 242, 2); }
+        else      { do Font.drawText(renderer, sFloor, x + 16, 242, 2); }
+        do Font.drawText(renderer, sJump, 386, 242, 2);
         return;
     }
 
@@ -36,18 +55,43 @@ class Hud {
         return;
     }
 
+    /**
+     * Cartel grande al empezar cada fase, centrado en la zona de juego.
+     * Queda lejos de las columnas del cubo (64 y 432) para no taparlo.
+     */
+    method void drawBanner(int stage, boolean roof) {
+        var int x;
+        let x = Font.drawText(renderer, sStage, 202, 100, 4);
+        do Font.drawNumber(renderer, stage, x + 16, 100, 4);
+        if (roof) { do Font.drawText(renderer, sRoof, 197, 128, 2); }
+        else      { do Font.drawText(renderer, sFloor, 237, 128, 2); }
+        return;
+    }
+
+    method void eraseBanner() {
+        do renderer.eraseRect(190, 96, 322, 140);
+        return;
+    }
+
     /** Cartel de fin de partida en el centro de la pantalla. */
     method void drawGameOver(int score) {
         var int x;
         do renderer.fillRect(136, 78, 375, 177);       // marco
         do renderer.eraseRect(140, 82, 371, 173);      // interior
-        do Font.drawLabel(renderer, "GAME OVER", 186, 94, 4);
-        let x = Font.drawLabel(renderer, "PUNTOS ", 220, 136, 2);
-        do Font.drawNumber(renderer, score, x, 136, 2);
+        do Font.drawText(renderer, sGameOver, 186, 94, 4);
+        let x = Font.drawText(renderer, sPoints, 220, 136, 2);
+        do Font.drawNumber(renderer, score, x + 8, 136, 2);
         return;
     }
 
     method void dispose() {
+        do sPoints.dispose();
+        do sSpeed.dispose();
+        do sStage.dispose();
+        do sFloor.dispose();
+        do sRoof.dispose();
+        do sJump.dispose();
+        do sGameOver.dispose();
         do Memory.deAlloc(this);
         return;
     }

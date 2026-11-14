@@ -34,6 +34,7 @@ class Game {
     field int stage;              // etapa actual (1, 2, 3...)
     field int spawned;            // grupos de pinchos generados en esta etapa
     field int perStage;           // grupos antes de que aparezca el portal
+    field int bannerTimer;        // ticks que le quedan al cartel de fase
 
     // Distribucion vertical de la pantalla (filas):
     //   0..17 marcador | 18..21 techo | 22..231 zona de juego
@@ -70,6 +71,7 @@ class Game {
         let stage = 1;
         let spawned = 0;
         let perStage = 5;
+        let bannerTimer = 0;
         let score = 0;
         let speed = 4;
         let tickDelay = 30;                      // ~33 fps aprox.
@@ -86,6 +88,7 @@ class Game {
         do drawStaticScene();
 
         while (running) {
+            do tickBanner();
             do handleInput();
             do updateWorld();
             do render();
@@ -125,7 +128,7 @@ class Game {
         // Tras 'perStage' grupos aparece el portal; mientras esta en
         // pantalla no se generan pinchos.
         let gap = gap - speed;
-        if ((gap < 1) & ~portal.isActive()) {
+        if ((gap < 1) & (bannerTimer = 0) & ~portal.isActive()) {
             if (spawned < perStage) {
                 do spawnSpikes();
             } else {
@@ -178,6 +181,15 @@ class Game {
         return;
     }
 
+    /** Cuenta atras del cartel de fase; al llegar a 0 lo borra. */
+    method void tickBanner() {
+        if (bannerTimer > 0) {
+            let bannerTimer = bannerTimer - 1;
+            if (bannerTimer = 0) { do hud.eraseBanner(); }
+        }
+        return;
+    }
+
     /** Detecta si el centro del portal ya paso el centro del cubo. */
     method void checkPortal() {
         var int pc;
@@ -202,6 +214,7 @@ class Game {
         var Spikes s;
         let score = score + 1;
         let stage = stage + 1;
+        if (speed < 10) { let speed = speed + 1; }   // cada etapa es mas rapida
         do renderer.toggleInvert();
         let roof = ~roof;
         let dir = -dir;
@@ -214,7 +227,7 @@ class Game {
             let i = i + 1;
         }
         let spawned = 0;
-        let gap = 160;                // respiro antes del primer grupo nuevo
+        let gap = 0;                  // el respiro lo da el cartel de fase
         do drawStaticScene();
         return;
     }
@@ -243,7 +256,9 @@ class Game {
         // Suelo: franja fina a lo ancho de la pantalla.
         do renderer.fillRect(0, ceilY - 3, 511, ceilY);     // techo
         do renderer.fillRect(0, floorY, 511, floorY + 3);   // suelo
-        do hud.drawAll(score);
+        do hud.drawScene(score, speed - 3, stage, roof);
+        do hud.drawBanner(stage, roof);
+        let bannerTimer = 45;         // ~1.5 s sin pinchos para reaccionar
         return;
     }
 
