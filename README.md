@@ -66,108 +66,72 @@ dentro de los límites de la plataforma Hack.
 
 ---
 
-## 3. Arquitectura del proyecto
+## Lo más destacado
 
-El proyecto sigue un diseño **orientado a objetos con una clase por archivo** (requisito de desarrollo de alto nivel en Jack). La responsabilidad de cada clase está deliberadamente separada para que las mecánicas diferenciadoras (inversión de color, cambio de plano) se puedan añadir tocando el menor número de clases posible.
+- **Cero memoria reservada durante el juego.** `Game.jack` crea todos los
+  objetos una vez y `reset()` los reutiliza en cada intento, porque el
+  `Memory.alloc` del OS no fusiona bloques libres. La versión anterior
+  creaba un `String` por tick y se caía con `ERR6` a los ~570 ticks. Ahora
+  el heap queda fijo en 13 505 palabras durante 2000 ticks con cuatro
+  partidas seguidas.
+- **Movimiento sin parpadeo.** `Renderer.shiftSpan` pinta solo el borde que
+  entra y borra el que sale: dos rectángulos por franja, sin importar su
+  largo. Pinchos y portal son listas de franjas (`Strips.jack`).
+- **Un solo valor invierte toda la paleta.** `Renderer.jack` es la única
+  fuente del color y `Font.jack` trae una fuente propia de 40 caracteres
+  de 3x5 guardados en enteros de 15 bits, para que el texto también se
+  invierta (el `Output` del OS pinta letras negras sobre celdas blancas).
+- **Las mismas ecuaciones para el suelo y el techo.** `Player.jack`
+  multiplica la gravedad y el impulso por `dir = ±1`. El salto sube 66 px
+  y dura unos 22 ticks.
+- **Aleatorio de 16 bits sin desbordes.** `Random.jack` usa el método de
+  Schrage, verificado contra el módulo exacto en los 30 268 estados. La
+  semilla son los ticks que tarda el jugador en pulsar ESPACIO.
+- **Probado en la VM oficial.** `tests/smoke.test.mjs` corre el juego en el
+  simulador de nand2tetris. Un bot que solo mira la pantalla cruza 20
+  portales en 6000 ticks sin morir, a ~5900 instrucciones de VM por tick.
 
-### 3.1 Diagrama de clases
+## Requisitos técnicos de la evaluación
 
-```
-                         ┌─────────────┐
-                         │    Main     │   Punto de entrada (Main.main)
-                         └──────┬──────┘
-                                │ crea y ejecuta
-                                ▼
-                         ┌─────────────┐
-                         │    Game     │   Orquestador: game loop, input,
-                         │ (game loop) │   colisiones, puntaje, estado
-                         └──┬───┬───┬──┘
-              usa (dibujo)  │   │   │  posee
-           ┌────────────────┘   │   └────────────────┐
-           ▼                    ▼                     ▼
-    ┌─────────────┐      ┌─────────────┐       ┌─────────────┐
-    │  Renderer   │◄─────│   Player    │       │  Obstacle   │
-    │  (color +   │ usa  │  (física    │       │ (movimiento │
-    │   dibujo)   │◄─────│   de salto) │       │  + reciclaje)│
-    └─────────────┘ usa  └─────────────┘       └─────────────┘
-```
+| Requisito | Cómo se cumple |
+|-----------|----------------|
+| Interactividad por teclado sin lectura bloqueante | `Input.isJump()` consulta `Keyboard.keyPressed()` en cada tick. Nunca se usa `readChar` ni `readLine`. |
+| Fondo móvil o entorno dinámico | Pinchos y portal se desplazan sin parar, las muescas del suelo o del techo avanzan con el mundo y la paleta se invierte en cada portal. |
+| Comportamiento físico modelado | `Player.update()` integra gravedad y velocidad en cada tick: el salto describe una parábola. |
+| Marcador visible y dinámico | `Hud` muestra puntos, velocidad y fase, y redibuja el puntaje al cruzar cada portal. |
 
-- `Game` **posee** a `Player` y `Obstacle` y los coordina.
-- `Player` y `Obstacle` **usan** `Renderer` para dibujarse, sin saber nada del color actual.
-- `Renderer` es la **única fuente de verdad del color**, lo que hace la inversión trivial.
+## Cómo funciona
 
-### 3.2 Responsabilidad de cada clase
-
-| Archivo | Clase | Responsabilidad |
-|---------|-------|-----------------|
-| `Main.jack` | `Main` | Punto de entrada. Crea `Game`, lo ejecuta y libera memoria. Deliberadamente mínimo. |
-| `Game.jack` | `Game` | **Orquestador.** Mantiene el bucle principal, lee el teclado sin bloquear, actualiza física y obstáculos, detecta colisiones (AABB), lleva el puntaje y controla el estado (jugando / game over). |
-| `Player.jack` | `Player` | El cubo del jugador. Encapsula posición y **física de salto** (cinemática con gravedad → arco parabólico). |
-| `Obstacle.jack` | `Obstacle` | Un obstáculo a esquivar. Se desplaza y se **recicla** al salir de pantalla (evita fragmentar la escasa RAM). |
-| `Renderer.jack` | `Renderer` | Capa de abstracción sobre `Screen`. **Centraliza el color** (tinta/fondo) y resuelve la **inversión** con un único método. |
-
-### 3.3 Decisiones de diseño clave
-
-1. **El mundo se mueve, no el cubo.** En Fase 1 la X del cubo es fija y los obstáculos se desplazan hacia él. Esto produce la *sensación de movimiento* (requisito "Fondo Móvil / Entorno Dinámico") de forma económica.
-2. **Color centralizado en `Renderer`.** Ninguna clase conoce el color concreto; piden "pinta tinta" o "pinta fondo". Invertir toda la paleta es **un solo `toggleInvert()`**.
-3. **Reciclaje de objetos.** Los obstáculos no se crean/destruyen; se reposicionan. La RAM de la plataforma Hack es muy limitada.
-4. **Input no bloqueante.** Se usa `Keyboard.keyPressed()` (no `readChar`/`readLine`), para que el bucle nunca se detenga — requisito explícito de "Interactividad por Teclado".
-5. **Recorte de coordenadas (clamping) en `Renderer`.** `Screen.drawRectangle` del OS de Jack es estricto: si una coordenada cae fuera de `[0,511]×[0,255]` aborta con el error `ERR9`. Como el cubo salta cerca del techo y los obstáculos salen por los bordes, `Renderer.safeRect()` recorta toda coordenada al área visible (y descarta lo que queda totalmente fuera) antes de llamar al OS. Centralizarlo en `Renderer` evita repetir esa lógica en cada clase.
-
----
-
-## 4. Modelo físico (comportamiento matemático)
-
-El salto del cubo cumple el requisito **"Comportamiento Físico Modelado"**. Es una integración cinemática discreta por tick:
-
-```
-vy  ←  vy + gravity        (la gravedad acelera hacia abajo)
-y   ←  y  + vy             (se actualiza la posición vertical)
+```text
+HackDash/            # el programa Jack: esta carpeta se carga en el VM Emulator
+  Main.jack          # portada -> partida -> reintentar
+  Title.jack         # portada; devuelve la semilla aleatoria
+  Input.jack         # teclado sin bloqueo
+  Game.jack          # bucle principal, generación, colisiones, cambios de fase
+  Player.jack        # el cubo y su física
+  Spikes.jack        # grupos de pinchos reciclados
+  Portal.jack        # aro de transición
+  Strips.jack        # figuras hechas de franjas que se mueven sin parpadeo
+  Scenery.jack       # muescas que avanzan con el mundo
+  Renderer.jack      # color, recorte y dibujo incremental
+  Font.jack          # fuente de 3x5 que se invierte con los colores
+  Hud.jack           # marcador y carteles
+  Random.jack        # números pseudoaleatorios de 16 bits
+tools/               # compilar y simular sin interfaz (Node)
+tests/               # pruebas de humo sobre la VM oficial
+docs/                # arquitectura y capturas
 ```
 
-Al saltar se fija `vy` a un impulso negativo (hacia arriba, pues en pantalla `y` crece hacia abajo). La gravedad lo frena y lo devuelve al suelo describiendo un **arco parabólico**. Un flag `onGround` evita el doble salto.
+`Main` muestra la portada y crea un único `Game`. En cada tick, `Game` lee
+el teclado, integra la física del cubo, mueve pinchos, portal y muescas, y
+revisa el cruce del portal y los choques. Todo el dibujo pasa por
+`Renderer`, que sabe si la paleta está invertida. La explicación completa,
+con diagramas para la sustentación, está en
+[docs/ARQUITECTURA.md](docs/ARQUITECTURA.md).
 
----
+## Tecnología
 
-## 5. Requisitos técnicos de la rúbrica — cobertura
-
-| Requisito (rúbrica) | Cómo se cumple |
-|---------------------|----------------|
-| **Interactividad por teclado** (sin lectura bloqueante) | `Game.handleInput()` usa `Keyboard.keyPressed()` cada tick. |
-| **Comportamiento físico modelado** | `Player.update()` integra gravedad y velocidad (salto parabólico). |
-| **Visualización de puntaje** | `Game.drawScore()` imprime el marcador y se actualiza cada tick. |
-| **Fondo móvil / entorno dinámico** | Obstáculos en desplazamiento continuo + (futuro) inversión de plano. |
-
----
-
-## 6. Controles
-
-| Tecla | Acción |
-|-------|--------|
-| **Barra espaciadora** o **Flecha ↑** | Saltar |
-
----
-
-## 7. Especificaciones de la plataforma
-
-- **Pantalla:** 512 × 256 px, monocromática (`Screen.setColor(true)` = negro).
-- **Entrada:** `Keyboard.keyPressed()` (espacio = 32, flecha arriba = 131).
-- **Ritmo:** `Sys.wait(ms)` controla la velocidad del bucle.
-
----
-
-## 8. Estructura de archivos
-
-```
-GeometryHash/
-├── README.md
-└── src/
-    ├── Main.jack        Punto de entrada
-    ├── Game.jack        Orquestador / game loop
-    ├── Player.jack      Cubo + física de salto
-    ├── Obstacle.jack    Obstáculos + reciclaje
-    └── Renderer.jack    Dibujo + color/inversión
-```
+Jack · VM de Nand2Tetris con el OS integrado · Hack, pantalla de 512x256 monocromática y enteros de 16 bits · Node.js 22+ para las herramientas de prueba
 
 ---
 
