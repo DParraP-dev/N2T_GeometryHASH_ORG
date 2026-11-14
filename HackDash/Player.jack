@@ -63,6 +63,17 @@ class Player {
         return this;
     }
 
+    /** Vuelve al estado inicial (en el suelo, en la columna startX). */
+    method void reset(int startX) {
+        let x = startX;
+        let dir = 1;
+        let vy = 0;
+        let onGround = true;
+        let y = floorY - size;
+        let prevY = y;
+        return;
+    }
+
     /**
      * Cambio de plano al cruzar un portal: invierte la gravedad, coloca el
      * cubo en su nueva superficie y en la nueva columna newX.

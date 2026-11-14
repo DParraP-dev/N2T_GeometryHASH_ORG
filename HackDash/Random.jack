@@ -27,13 +27,19 @@ class Random {
     field int seed;   // estado, siempre en [1, 30268]
 
     constructor Random new(int s) {
+        do reseed(s);
+        return this;
+    }
+
+    /** Reinicia la secuencia con otra semilla (cada partida nueva). */
+    method void reseed(int s) {
         let seed = s;
         if (seed < 1) { let seed = 1; }
         let seed = seed - ((seed / 30268) * 30268);   // seed mod 30268
         if (seed = 0) { let seed = 4321; }
         do next();                                    // descarta los primeros
         do next();
-        return this;
+        return;
     }
 
     /** Siguiente numero de la secuencia, en [1, 30268]. */

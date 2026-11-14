@@ -35,6 +35,12 @@ class Renderer {
         return;
     }
 
+    /** Fija el esquema de color (false = fondo blanco, al empezar partida). */
+    method void setInverted(boolean value) {
+        let inverted = value;
+        return;
+    }
+
     /** Devuelve true si el juego esta en modo invertido (Fase 2). */
     method boolean isInverted() {
         return inverted;
