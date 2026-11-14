@@ -1,0 +1,66 @@
+// ============================================================================
+//  GeometryHash  -  Juego "Hack Dash"
+//  Organizacion de Computadores - 2026
+//
+//  Archivo : Random.jack
+//  Clase   : Random
+//  Rol     : Generador de numeros pseudoaleatorios para variar los
+//            obstaculos y la distancia entre ellos.
+//
+//  Algoritmo: generador congruencial  seed <- (171 * seed) mod 30269
+//  (una de las tres componentes de Wichmann-Hill, periodo 30268).
+//
+//  El problema en Hack: los enteros son de 16 bits (maximo 32767) y
+//  171 * seed se desborda. Se usa el metodo de Schrage, que calcula el
+//  mismo resultado sin pasar nunca de 16 bits:
+//      q = 30269 / 171 = 177,   r = 30269 mod 171 = 2
+//      seed <- 171 * (seed mod q)  -  r * (seed / q)     (+30269 si < 0)
+//  El primer termino vale como mucho 171 * 176 = 30096 y el segundo 342.
+//
+//  La semilla sale de cuantos ticks tarda el jugador en pulsar ESPACIO en
+//  la portada: el tiempo de reaccion humano hace que cada partida sea
+//  distinta sin necesidad de reloj.
+// ============================================================================
+
+class Random {
+
+    field int seed;   // estado, siempre en [1, 30268]
+
+    constructor Random new(int s) {
+        do reseed(s);
+        return this;
+    }
+
+    /** Reinicia la secuencia con otra semilla (cada partida nueva). */
+    method void reseed(int s) {
+        let seed = s;
+        if (seed < 1) { let seed = 1; }
+        let seed = seed - ((seed / 30268) * 30268);   // seed mod 30268
+        if (seed = 0) { let seed = 4321; }
+        do next();                                    // descarta los primeros
+        do next();
+        return;
+    }
+
+    /** Siguiente numero de la secuencia, en [1, 30268]. */
+    method int next() {
+        var int hi, lo;
+        let hi = seed / 177;
+        let lo = seed - (hi * 177);
+        let seed = (171 * lo) - (2 * hi);
+        if (seed < 0) { let seed = seed + 30269; }
+        return seed;
+    }
+
+    /** Entero uniforme en [0, n). */
+    method int below(int n) {
+        var int v;
+        let v = next();
+        return v - ((v / n) * n);
+    }
+
+    method void dispose() {
+        do Memory.deAlloc(this);
+        return;
+    }
+}

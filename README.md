@@ -1,149 +1,170 @@
-# GeometryHash — "Hack Dash"
+<p align="center">
+  <img src=".github/banner.webp" alt="Hack Dash: el cubo cruza un portal y toda la pantalla se invierte" width="100%" />
+</p>
 
-> Videojuego de plataformas y reflejos desarrollado **íntegramente en lenguaje Jack** sobre la plataforma **Nand2Tetris (N2T)**.
-> Proyecto de la asignatura **Organización de Computadores — 2026**.
+<h1 align="center">Hack Dash</h1>
 
----
+<p align="center"><em>Un cubo, dos mundos y un solo botón. Un juego de plataformas en Jack que invierte sus colores y su gravedad en cada portal.</em></p>
 
-## 1. Concepto del juego
+<p align="center">
+  <img alt="Jack" src="https://img.shields.io/badge/Jack-Nand2Tetris-1F6FEB?style=flat" />
+  <img alt="Hack 16 bits" src="https://img.shields.io/badge/Hack-16_bits-555555?style=flat" />
+  <img alt="Node.js 22+" src="https://img.shields.io/badge/Node.js_22+-pruebas-5FA04E?style=flat&logo=nodedotjs&logoColor=white" />
+  <img alt="License MIT" src="https://img.shields.io/badge/license-MIT-c8542a?style=flat" />
+  <img alt="status WIP" src="https://img.shields.io/badge/status-WIP-e0a642?style=flat" />
+</p>
 
-**Hack Dash** es un juego de un solo botón. Un cubo avanza de forma **continua y automática** por el escenario; el jugador solo controla el **salto**, calculando con precisión el momento para esquivar los obstáculos que aparecen en su camino.
+Hack Dash es un juego de reflejos escrito por completo en Jack para la
+computadora Hack de Nand2Tetris. Un cubo avanza sin detenerse y el jugador
+solo decide cuándo saltar. Cada portal suma un punto, invierte todos los
+colores de la pantalla, lleva la acción del suelo al techo y acelera el
+mundo. Es el proyecto final de Organización de Computadores 2026.
 
-El factor diferenciador es que el juego **cambia sus propias reglas a mitad de partida**: al cruzar un portal invierte los colores de la pantalla en tiempo real, traslada la acción del suelo al techo e incrementa la velocidad de forma progresiva.
+> **Video de demostración (YouTube):** _pendiente. Se agrega aquí antes de la sustentación._
 
-| Fase | Mecánica |
-|------|----------|
-| **Fase 1** | Avance de izquierda a derecha en la parte inferior. Salto sobre el suelo para esquivar obstáculos. |
-| **Portal** | Al cruzarlo: +1 punto e **inversión de colores** (fondo blanco/negro ↔ negro/blanco). |
-| **Fase 2** | *(en desarrollo)* Inversión espacial: la acción pasa al **techo**, el cubo va de derecha a izquierda y la **velocidad aumenta** progresivamente. |
+## Integrantes
 
----
+- Pablo Manjarres
+- Daniel Parra Paternina
+- Andrés Felipe Rengifo Zapata
 
-## 2. Estado actual
-
-- ✅ **Fase 1 implementada**: avance continuo, salto con física (gravedad), obstáculos reciclados, detección de colisiones, puntaje en pantalla y game over.
-- 🔜 **Portal + inversión de colores** (la arquitectura ya está preparada: ver `Renderer`).
-- 🔜 **Fase 2**: techo, movimiento inverso y velocidad progresiva.
-
----
-
-## 3. Arquitectura del proyecto
-
-El proyecto sigue un diseño **orientado a objetos con una clase por archivo** (requisito de desarrollo de alto nivel en Jack). La responsabilidad de cada clase está deliberadamente separada para que las mecánicas diferenciadoras (inversión de color, cambio de plano) se puedan añadir tocando el menor número de clases posible.
-
-### 3.1 Diagrama de clases
-
-```
-                         ┌─────────────┐
-                         │    Main     │   Punto de entrada (Main.main)
-                         └──────┬──────┘
-                                │ crea y ejecuta
-                                ▼
-                         ┌─────────────┐
-                         │    Game     │   Orquestador: game loop, input,
-                         │ (game loop) │   colisiones, puntaje, estado
-                         └──┬───┬───┬──┘
-              usa (dibujo)  │   │   │  posee
-           ┌────────────────┘   │   └────────────────┐
-           ▼                    ▼                     ▼
-    ┌─────────────┐      ┌─────────────┐       ┌─────────────┐
-    │  Renderer   │◄─────│   Player    │       │  Obstacle   │
-    │  (color +   │ usa  │  (física    │       │ (movimiento │
-    │   dibujo)   │◄─────│   de salto) │       │  + reciclaje)│
-    └─────────────┘ usa  └─────────────┘       └─────────────┘
-```
-
-- `Game` **posee** a `Player` y `Obstacle` y los coordina.
-- `Player` y `Obstacle` **usan** `Renderer` para dibujarse, sin saber nada del color actual.
-- `Renderer` es la **única fuente de verdad del color**, lo que hace la inversión trivial.
-
-### 3.2 Responsabilidad de cada clase
-
-| Archivo | Clase | Responsabilidad |
-|---------|-------|-----------------|
-| `Main.jack` | `Main` | Punto de entrada. Crea `Game`, lo ejecuta y libera memoria. Deliberadamente mínimo. |
-| `Game.jack` | `Game` | **Orquestador.** Mantiene el bucle principal, lee el teclado sin bloquear, actualiza física y obstáculos, detecta colisiones (AABB), lleva el puntaje y controla el estado (jugando / game over). |
-| `Player.jack` | `Player` | El cubo del jugador. Encapsula posición y **física de salto** (cinemática con gravedad → arco parabólico). |
-| `Obstacle.jack` | `Obstacle` | Un obstáculo a esquivar. Se desplaza y se **recicla** al salir de pantalla (evita fragmentar la escasa RAM). |
-| `Renderer.jack` | `Renderer` | Capa de abstracción sobre `Screen`. **Centraliza el color** (tinta/fondo) y resuelve la **inversión** con un único método. |
-
-### 3.3 Decisiones de diseño clave
-
-1. **El mundo se mueve, no el cubo.** En Fase 1 la X del cubo es fija y los obstáculos se desplazan hacia él. Esto produce la *sensación de movimiento* (requisito "Fondo Móvil / Entorno Dinámico") de forma económica.
-2. **Color centralizado en `Renderer`.** Ninguna clase conoce el color concreto; piden "pinta tinta" o "pinta fondo". Invertir toda la paleta es **un solo `toggleInvert()`**.
-3. **Reciclaje de objetos.** Los obstáculos no se crean/destruyen; se reposicionan. La RAM de la plataforma Hack es muy limitada.
-4. **Input no bloqueante.** Se usa `Keyboard.keyPressed()` (no `readChar`/`readLine`), para que el bucle nunca se detenga — requisito explícito de "Interactividad por Teclado".
-5. **Recorte de coordenadas (clamping) en `Renderer`.** `Screen.drawRectangle` del OS de Jack es estricto: si una coordenada cae fuera de `[0,511]×[0,255]` aborta con el error `ERR9`. Como el cubo salta cerca del techo y los obstáculos salen por los bordes, `Renderer.safeRect()` recorta toda coordenada al área visible (y descarta lo que queda totalmente fuera) antes de llamar al OS. Centralizarlo en `Renderer` evita repetir esa lógica en cada clase.
-
----
-
-## 4. Modelo físico (comportamiento matemático)
-
-El salto del cubo cumple el requisito **"Comportamiento Físico Modelado"**. Es una integración cinemática discreta por tick:
-
-```
-vy  ←  vy + gravity        (la gravedad acelera hacia abajo)
-y   ←  y  + vy             (se actualiza la posición vertical)
-```
-
-Al saltar se fija `vy` a un impulso negativo (hacia arriba, pues en pantalla `y` crece hacia abajo). La gravedad lo frena y lo devuelve al suelo describiendo un **arco parabólico**. Un flag `onGround` evita el doble salto.
-
----
-
-## 5. Requisitos técnicos de la rúbrica — cobertura
-
-| Requisito (rúbrica) | Cómo se cumple |
-|---------------------|----------------|
-| **Interactividad por teclado** (sin lectura bloqueante) | `Game.handleInput()` usa `Keyboard.keyPressed()` cada tick. |
-| **Comportamiento físico modelado** | `Player.update()` integra gravedad y velocidad (salto parabólico). |
-| **Visualización de puntaje** | `Game.drawScore()` imprime el marcador y se actualiza cada tick. |
-| **Fondo móvil / entorno dinámico** | Obstáculos en desplazamiento continuo + (futuro) inversión de plano. |
-
----
-
-## 6. Controles
+## Cómo se juega
 
 | Tecla | Acción |
 |-------|--------|
-| **Barra espaciadora** o **Flecha ↑** | Saltar |
+| `ESPACIO` o `↑` | Saltar. En el techo el salto va hacia abajo. |
+| `ESPACIO` en la portada o tras perder | Empezar o reintentar. |
 
----
+| Portada | Fase de suelo |
+|:-------:|:-------------:|
+| <img src="docs/img/portada.png" alt="Portada de Hack Dash" width="400" /> | <img src="docs/img/fase-1.png" alt="Fase de suelo con pinchos" width="400" /> |
+| **Fase de techo invertida** | **Fin de partida** |
+| <img src="docs/img/fase-2.png" alt="Fase de techo con colores invertidos" width="400" /> | <img src="docs/img/game-over.png" alt="Cartel de fin de partida" width="400" /> |
 
-## 7. Especificaciones de la plataforma
+### Mecánicas
 
-- **Pantalla:** 512 × 256 px, monocromática (`Screen.setColor(true)` = negro).
-- **Entrada:** `Keyboard.keyPressed()` (espacio = 32, flecha arriba = 131).
-- **Ritmo:** `Sys.wait(ms)` controla la velocidad del bucle.
+- **Fase de suelo.** El cubo corre de izquierda a derecha sobre el suelo y
+  salta grupos de 1 a 3 pinchos. La distancia entre grupos es aleatoria.
+- **Portal.** Tras 5 grupos de pinchos aparece un aro que ocupa toda la
+  altura. Cruzarlo suma un punto e invierte la paleta: fondo blanco con
+  elementos negros pasa a fondo negro con elementos blancos.
+- **Fase de techo.** Al otro lado del portal la gravedad apunta hacia
+  arriba. El cubo cuelga del techo, va de cabeza, avanza de derecha a
+  izquierda y los pinchos cuelgan del techo. El siguiente portal lo
+  devuelve al suelo.
+- **Velocidad progresiva.** Cada portal sube la velocidad del mundo, de
+  4 a 10 píxeles por tick.
 
----
+### Factor diferenciador
 
-## 8. Estructura de archivos
+Los juegos en Jack que suelen encontrarse en línea (el Pong del curso,
+Snake, Tetris, corredores sin fin) mantienen un solo plano y una sola
+paleta durante toda la partida. Hack Dash cambia sus reglas a mitad de la
+partida: invierte los colores en tiempo real, muda la acción del suelo al
+techo con la gravedad al revés y escala la velocidad en cada etapa, todo
+dentro de los límites de la plataforma Hack.
 
+## Lo más destacado
+
+- **Cero memoria reservada durante el juego.** `Game.jack` crea todos los
+  objetos una vez y `reset()` los reutiliza en cada intento, porque el
+  `Memory.alloc` del OS no fusiona bloques libres. La versión anterior
+  creaba un `String` por tick y se caía con `ERR6` a los ~570 ticks. Ahora
+  el heap queda fijo en 13 505 palabras durante 2000 ticks con cuatro
+  partidas seguidas.
+- **Movimiento sin parpadeo.** `Renderer.shiftSpan` pinta solo el borde que
+  entra y borra el que sale: dos rectángulos por franja, sin importar su
+  largo. Pinchos y portal son listas de franjas (`Strips.jack`).
+- **Un solo valor invierte toda la paleta.** `Renderer.jack` es la única
+  fuente del color y `Font.jack` trae una fuente propia de 40 caracteres
+  de 3x5 guardados en enteros de 15 bits, para que el texto también se
+  invierta (el `Output` del OS pinta letras negras sobre celdas blancas).
+- **Las mismas ecuaciones para el suelo y el techo.** `Player.jack`
+  multiplica la gravedad y el impulso por `dir = ±1`. El salto sube 66 px
+  y dura unos 22 ticks.
+- **Aleatorio de 16 bits sin desbordes.** `Random.jack` usa el método de
+  Schrage, verificado contra el módulo exacto en los 30 268 estados. La
+  semilla son los ticks que tarda el jugador en pulsar ESPACIO.
+- **Probado en la VM oficial.** `tests/smoke.test.mjs` corre el juego en el
+  simulador de nand2tetris. Un bot que solo mira la pantalla cruza 20
+  portales en 6000 ticks sin morir, a ~5900 instrucciones de VM por tick.
+
+## Requisitos técnicos de la evaluación
+
+| Requisito | Cómo se cumple |
+|-----------|----------------|
+| Interactividad por teclado sin lectura bloqueante | `Input.isJump()` consulta `Keyboard.keyPressed()` en cada tick. Nunca se usa `readChar` ni `readLine`. |
+| Fondo móvil o entorno dinámico | Pinchos y portal se desplazan sin parar, las muescas del suelo o del techo avanzan con el mundo y la paleta se invierte en cada portal. |
+| Comportamiento físico modelado | `Player.update()` integra gravedad y velocidad en cada tick: el salto describe una parábola. |
+| Marcador visible y dinámico | `Hud` muestra puntos, velocidad y fase, y redibuja el puntaje al cruzar cada portal. |
+
+## Cómo funciona
+
+```text
+HackDash/            # el programa Jack: esta carpeta se carga en el VM Emulator
+  Main.jack          # portada -> partida -> reintentar
+  Title.jack         # portada; devuelve la semilla aleatoria
+  Input.jack         # teclado sin bloqueo
+  Game.jack          # bucle principal, generación, colisiones, cambios de fase
+  Player.jack        # el cubo y su física
+  Spikes.jack        # grupos de pinchos reciclados
+  Portal.jack        # aro de transición
+  Strips.jack        # figuras hechas de franjas que se mueven sin parpadeo
+  Scenery.jack       # muescas que avanzan con el mundo
+  Renderer.jack      # color, recorte y dibujo incremental
+  Font.jack          # fuente de 3x5 que se invierte con los colores
+  Hud.jack           # marcador y carteles
+  Random.jack        # números pseudoaleatorios de 16 bits
+tools/               # compilar y simular sin interfaz (Node)
+tests/               # pruebas de humo sobre la VM oficial
+docs/                # arquitectura y capturas
 ```
-GeometryHash/
-├── README.md
-└── src/
-    ├── Main.jack        Punto de entrada
-    ├── Game.jack        Orquestador / game loop
-    ├── Player.jack      Cubo + física de salto
-    ├── Obstacle.jack    Obstáculos + reciclaje
-    └── Renderer.jack    Dibujo + color/inversión
+
+`Main` muestra la portada y crea un único `Game`. En cada tick, `Game` lee
+el teclado, integra la física del cubo, mueve pinchos, portal y muescas, y
+revisa el cruce del portal y los choques. Todo el dibujo pasa por
+`Renderer`, que sabe si la paleta está invertida. La explicación completa,
+con diagramas para la sustentación, está en
+[docs/ARQUITECTURA.md](docs/ARQUITECTURA.md).
+
+## Tecnología
+
+Jack · VM de Nand2Tetris con el OS integrado · Hack, pantalla de 512x256 monocromática y enteros de 16 bits · Node.js 22+ para las herramientas de prueba
+
+## Cómo ejecutarlo
+
+### En el VM Emulator del curso
+
+1. Compila la carpeta con el `JackCompiler` de la suite de Nand2Tetris (la
+   carpeta `tools/` de la suite, no la de este repositorio):
+   `JackCompiler.sh ruta/a/HackDash` en macOS o Linux, o
+   `JackCompiler.bat ruta\a\HackDash` en Windows. Se crean los `.vm`
+   dentro de `HackDash/`.
+2. Abre el **VM Emulator** y carga la carpeta `HackDash` con *Load Program*.
+3. Elige *No animation* y lleva la velocidad al máximo.
+4. Pulsa *Run*. Si el juego no responde a las teclas, haz clic en el botón
+   del teclado del emulador.
+
+Usa el VM Emulator, no el CPU Emulator: el VM Emulator ejecuta las
+funciones del OS (`Screen`, `Keyboard`) de forma nativa, y el juego dibuja
+cientos de rectángulos por tick.
+
+### Sin Java
+
+`node tools/build.mjs HackDash` compila con el compilador del IDE web
+oficial y deja los `.vm` en `build/HackDash/`. La preparación está en
+[tools/README.md](tools/README.md).
+
+### Pruebas automáticas
+
+```bash
+npm test
 ```
 
----
+## Licencia
 
-## 9. Cómo compilar y ejecutar
-
-> El equipo usa un script `traductorVM` propio para traducir el programa a assembler; el flujo general en N2T es:
-
-1. Compilar los `.jack` de `src/` con el **Jack Compiler** → genera los `.vm`.
-2. Cargar la carpeta en el **VM Emulator** de la N2T Software Suite (o traducir a `.asm` con el traductor VM y correr en el **CPU Emulator**).
-3. Ejecutar. El juego arranca en la pantalla de juego de la Fase 1.
+MIT. Ver [LICENSE](LICENSE).
 
 ---
 
-## 10. Equipo
-
-Proyecto grupal — Organización de Computadores, 2026.
-
-_(Añadir aquí los integrantes del grupo.)_
+<p align="center">Organización de Computadores · 2026</p>

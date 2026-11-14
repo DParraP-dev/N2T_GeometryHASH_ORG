@@ -1,0 +1,329 @@
+// ============================================================================
+//  GeometryHash  -  Juego "Hack Dash"
+//  Organizacion de Computadores - 2026
+//
+//  Archivo : Game.jack
+//  Clase   : Game
+//  Rol     : ORQUESTADOR central del juego. Es el "cerebro" que:
+//              - mantiene el bucle principal (game loop),
+//              - lee el teclado SIN bloquear (via Input),
+//              - actualiza la fisica del cubo y mueve pinchos, portal y fondo,
+//              - genera grupos de pinchos y, tras 5 grupos, un portal,
+//              - al cruzar un portal: +1 punto, invierte colores, cambia de
+//                plano (suelo <-> techo) y sube la velocidad,
+//              - detecta colisiones y controla el fin de la partida.
+//
+//  Fases:  impares = SUELO, mundo hacia la izquierda, colores normales.
+//          pares   = TECHO, mundo hacia la derecha, colores invertidos.
+//
+//  Constantes de pantalla Hack: 512 ancho x 256 alto.
+// ============================================================================
+
+class Game {
+
+    field Renderer renderer;      // capa de dibujo + color actual
+    field Hud hud;                // marcador y mensajes en pantalla
+    field Scenery scenery;        // muescas de la superficie activa que avanzan con el mundo
+    field Player player;          // el cubo del jugador
+    field Array pool;             // pool fijo de Spikes (se reciclan)
+    field int poolSize;
+    field Random rng;             // varia pinchos y distancias
+    field int gap;                // px de mundo que faltan para el siguiente grupo
+    field Portal portal;          // aro de transicion entre etapas
+    field int stage;              // etapa actual (1, 2, 3...)
+    field int spawned;            // grupos de pinchos generados en esta etapa
+    field int perStage;           // grupos antes de que aparezca el portal
+    field int bannerTimer;        // ticks que le quedan al cartel de fase
+
+    // Distribucion vertical de la pantalla (filas). tools/lib/bot.mjs
+    // depende de estas filas y de las columnas del cubo (cubeColumn):
+    //   0..17 marcador | 18..21 techo | 22..231 zona de juego
+    //   232..235 suelo | 236..255 informacion de la fase
+    field int floorY;             // primera fila del suelo
+    field int ceilY;              // ultima fila del techo
+    field boolean roof;           // true en las fases de techo (colores invertidos)
+    field int dir;                // sentido del mundo: -1 hacia la izquierda, +1 hacia la derecha
+    field int score;              // puntaje acumulado
+    field int speed;              // velocidad de desplazamiento (px/tick)
+    field int tickDelay;          // ms de espera por tick (controla fluidez)
+    field boolean running;        // true mientras la partida sigue viva
+
+    /**
+     * Construye el juego. TODOS los objetos se crean aqui, una sola vez;
+     * cada partida nueva los reutiliza con reset(). Durante el juego no se
+     * reserva ni se libera memoria.
+     */
+    constructor Game new(int seed) {
+        var int i;
+        let floorY = 232;
+        let ceilY = 21;
+        let renderer = Renderer.new();
+        let hud = Hud.new(renderer);
+        let scenery = Scenery.new(233);       // muescas dentro del suelo
+        let rng = Random.new(seed);
+        let player = Player.new(64, floorY, ceilY, 16); // cubo fijo a la izquierda
+        let poolSize = 3;                        // nunca hay mas de 3 en pantalla
+        let pool = Array.new(poolSize);
+        let i = 0;
+        while (i < poolSize) {
+            let pool[i] = Spikes.new();
+            let i = i + 1;
+        }
+        let portal = Portal.new(ceilY + 5, floorY - 5);   // ocupa toda la zona de juego
+        let perStage = 5;
+        let tickDelay = 30;                      // ~33 fps aprox.
+        do reset(seed);
+        return this;
+    }
+
+    /** Deja todo listo para una partida nueva (Fase 1, velocidad inicial). */
+    method void reset(int seed) {
+        do rng.reseed(seed);
+        do renderer.setInverted(false);
+        let roof = false;
+        let dir = -1;                            // Fase 1: el mundo viene desde la derecha
+        do player.reset(cubeColumn());
+        do clearWorld();
+        let stage = 1;
+        let bannerTimer = 0;
+        let score = 0;
+        let speed = 4;
+        let running = true;
+        return;
+    }
+
+    /**
+     * Bucle principal de UNA partida (termina al chocar).
+     * En cada iteracion: lee input, actualiza estado, redibuja y espera.
+     * El uso de Keyboard.keyPressed() garantiza captura NO bloqueante.
+     */
+    method void play() {
+        do drawStaticScene();
+
+        while (running) {
+            do tickBanner();
+            do handleInput();
+            do updateWorld();
+            do render();
+            do Sys.wait(tickDelay);   // ritmo del juego (y sensacion de fluidez)
+        }
+
+        do showGameOver();
+        return;
+    }
+
+    /** Lectura NO bloqueante del teclado (ver Input). */
+    method void handleInput() {
+        if (Input.isJump()) { do player.jump(); }
+        return;
+    }
+
+    /** Avanza la simulacion: fisica del cubo, obstaculos, colisiones. */
+    method void updateWorld() {
+        var int i;
+        var Spikes s;
+
+        do player.update();                     // integra gravedad/salto
+        do scenery.scroll(speed * dir, renderer);
+
+        // Mover los pinchos activos (se desactivan solos al salir).
+        let i = 0;
+        while (i < poolSize) {
+            let s = pool[i];
+            if (s.isActive()) { do s.move(speed * dir, renderer); }
+            let i = i + 1;
+        }
+        if (portal.isActive()) { do portal.move(speed * dir, renderer); }
+
+        // Tras 'perStage' grupos aparece el portal; mientras esta en
+        // pantalla no se generan pinchos.
+        let gap = gap - speed;
+        if ((gap < 1) & (bannerTimer = 0) & ~portal.isActive()) {
+            if (spawned < perStage) {
+                do spawnSpikes();
+            } else {
+                do portal.spawn(spawnX(portal.getWidth()));
+            }
+        }
+        do checkPortal();
+
+        if (collides()) {
+            let running = false;   // colision -> fin de la partida
+        }
+        return;
+    }
+
+    /**
+     * Columna donde nace un objeto de ancho w: justo fuera de la pantalla,
+     * en el borde por donde entra el mundo (derecha en el suelo, izquierda
+     * en el techo).
+     */
+    method int spawnX(int w) {
+        if (dir < 0) { return 512; }
+        return -w;
+    }
+
+    /**
+     * Genera un grupo de pinchos en el borde de entrada, reutilizando un
+     * objeto libre del pool, y sortea la distancia hasta el siguiente.
+     */
+    method void spawnSpikes() {
+        var int i, count;
+        var boolean tall;
+        var Spikes s;
+        let i = 0;
+        while (i < poolSize) {
+            let s = pool[i];
+            if (~s.isActive()) {
+                let count = 1 + rng.below(3);                 // 1 a 3 pinchos
+                let tall = (count < 3) & (rng.below(4) = 0);  // 1 de cada 4 es alto
+                if (roof) { do s.spawn(spawnX(count * 16), count, tall, ceilY, false); }
+                else      { do s.spawn(spawnX(count * 16), count, tall, floorY, true); }
+                let spawned = spawned + 1;
+                // Separacion minima = ancho del grupo + un salto completo
+                // (~24 ticks en el aire) + margen, mas un extra aleatorio.
+                let gap = (s.getWidth() + (speed * 24)) + (16 + rng.below(120));
+                return;
+            }
+            let i = i + 1;
+        }
+        let gap = 16;   // pool lleno: reintentar pronto
+        return;
+    }
+
+    /** Cuenta atras del cartel de fase; al llegar a 0 lo borra. */
+    method void tickBanner() {
+        if (bannerTimer > 0) {
+            let bannerTimer = bannerTimer - 1;
+            if (bannerTimer = 0) { do hud.eraseBanner(); }
+        }
+        return;
+    }
+
+    /** Detecta si el centro del portal ya paso el centro del cubo. */
+    method void checkPortal() {
+        var int pc;
+        if (portal.isActive()) {
+            let pc = player.getX() + (player.getSize() / 2);
+            if ((dir < 0) & (portal.centerX() < pc)) { do enterPortal(); return; }
+            if ((dir > 0) & (portal.centerX() > pc)) { do enterPortal(); }
+        }
+        return;
+    }
+
+    /**
+     * Cruce del portal: +1 punto, INVERSION DE COLORES y cambio de plano.
+     *  - Colores: cada clase pide "tinta" o "fondo" al Renderer, asi que
+     *    toda la escena se invierte con un solo toggleInvert().
+     *  - Plano: la accion pasa del suelo al techo (o al reves), la gravedad
+     *    del cubo se invierte y el mundo cambia de sentido. En el techo el
+     *    cubo queda a la derecha y avanza de derecha a izquierda.
+     */
+    method void enterPortal() {
+        let score = score + 1;
+        let stage = stage + 1;
+        if (speed < 10) { let speed = speed + 1; }   // cada etapa es mas rapida
+        do renderer.toggleInvert();
+        let roof = ~roof;
+        let dir = -dir;
+        do player.flip(cubeColumn());
+        do clearWorld();              // los pinchos ya superados desaparecen
+        do drawStaticScene();         // el respiro lo da el cartel de fase
+        return;
+    }
+
+    /** Columna fija del cubo: 64 en el suelo, 432 (lado derecho) en el techo. */
+    method int cubeColumn() {
+        if (roof) { return 512 - 64 - 16; }
+        return 64;
+    }
+
+    /** Saca de juego pinchos y portal y reinicia el conteo de la etapa. */
+    method void clearWorld() {
+        var int i;
+        var Spikes s;
+        let i = 0;
+        while (i < poolSize) {
+            let s = pool[i];
+            do s.deactivate();
+            let i = i + 1;
+        }
+        do portal.deactivate();
+        let spawned = 0;
+        let gap = 0;
+        return;
+    }
+
+    /**
+     * Colision del cubo contra cualquier grupo de pinchos activo
+     * (solapamiento de rectangulos, AABB, calculado en Spikes.hits).
+     */
+    method boolean collides() {
+        var int i, px, py, ps;
+        var Spikes s;
+        let px = player.getX();
+        let py = player.getY();
+        let ps = player.getSize();
+        let i = 0;
+        while (i < poolSize) {
+            let s = pool[i];
+            if (s.hits(px, py, ps)) {
+                return true;
+            }
+            let i = i + 1;
+        }
+        return false;
+    }
+
+    /** Dibuja elementos fijos de la escena (suelo) y limpia el fondo. */
+    method void drawStaticScene() {
+        do renderer.clearBackground();
+        // Suelo: franja fina a lo ancho de la pantalla.
+        do renderer.fillRect(0, ceilY - 3, 511, ceilY);     // techo
+        do renderer.fillRect(0, floorY, 511, floorY + 3);   // suelo
+        if (roof) { do scenery.setRow(ceilY - 2); } else { do scenery.setRow(floorY + 1); }
+        do scenery.draw(renderer);
+        do hud.drawScene(score, speed - 3, stage, roof);
+        do hud.drawBanner(stage, roof);
+        let bannerTimer = 45;         // ~1.5 s sin pinchos para reaccionar
+        return;
+    }
+
+    /**
+     * Redibuja los elementos moviles. El marcador no se toca aqui: antes se
+     * imprimia "Puntaje: " en cada tick y cada literal reservaba un String
+     * nuevo que nunca se liberaba. El heap se agotaba (ERR6) a los ~570
+     * ticks de juego. Ahora Hud lo dibuja solo cuando el puntaje cambia.
+     */
+    method void render() {
+        do player.render(renderer);   // los pinchos se dibujan al moverse
+        return;
+    }
+
+    /** Pantalla de fin de partida con el puntaje final. */
+    method void showGameOver() {
+        do hud.drawGameOver(score);
+        return;
+    }
+
+    /** Libera toda la memoria del juego. */
+    method void dispose() {
+        var int i;
+        var Spikes s;
+        let i = 0;
+        while (i < poolSize) {
+            let s = pool[i];
+            do s.dispose();
+            let i = i + 1;
+        }
+        do pool.dispose();
+        do portal.dispose();
+        do rng.dispose();
+        do player.dispose();
+        do hud.dispose();
+        do scenery.dispose();
+        do renderer.dispose();
+        do Memory.deAlloc(this);
+        return;
+    }
+}

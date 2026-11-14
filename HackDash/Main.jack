@@ -1,0 +1,30 @@
+// ============================================================================
+//  GeometryHash  -  Juego "Hack Dash"
+//  Organizacion de Computadores - 2026
+//
+//  Archivo : Main.jack
+//  Clase   : Main
+//  Rol     : Punto de entrada del programa. La plataforma Nand2Tetris
+//            ejecuta siempre Main.main() al iniciar. Main solo encadena las
+//            pantallas: portada -> partida -> reintentar -> partida ...
+//            (patron de "entry point delgado").
+// ============================================================================
+
+class Main {
+
+    /** Punto de entrada estandar exigido por el OS de Jack. */
+    function void main() {
+        var Game game;
+        var int seed;
+        do Font.init();             // tabla de letras (una vez por programa)
+        let seed = Title.show();    // portada; la semilla es el tiempo de reaccion
+        let game = Game.new(seed);  // todos los objetos del juego, una sola vez
+        while (true) {
+            do Input.waitRelease();       // que la tecla de inicio no cuente como salto
+            do game.play();               // una partida completa
+            let seed = Input.waitJump();  // ESPACIO para reintentar
+            do game.reset(seed);
+        }
+        return;
+    }
+}

@@ -1,0 +1,49 @@
+// ============================================================================
+//  GeometryHash  -  Juego "Hack Dash"
+//  Organizacion de Computadores - 2026
+//
+//  Archivo : Input.jack
+//  Clase   : Input
+//  Rol     : Lectura del teclado SIN bloquear. Todo pasa por
+//            Keyboard.keyPressed(), que solo consulta la direccion de
+//            memoria del teclado (RAM[24576]) y vuelve de inmediato.
+//            Nunca se usa readChar/readLine, que detienen el programa
+//            hasta que el usuario escribe.
+//
+//  Las esperas de menus (portada, reintentar) hacen polling con Sys.wait,
+//  y cuentan los ticks que pasan: ese numero sirve de semilla aleatoria.
+// ============================================================================
+
+class Input {
+
+    /** true si esta pulsada la tecla de salto: ESPACIO (32) o flecha arriba (131). */
+    function boolean isJump() {
+        var char key;
+        let key = Keyboard.keyPressed();
+        return (key = 32) | (key = 131);
+    }
+
+    /** Espera a que no haya ninguna tecla pulsada. */
+    function void waitRelease() {
+        while (~(Keyboard.keyPressed() = 0)) {
+            do Sys.wait(10);
+        }
+        return;
+    }
+
+    /**
+     * Espera a que se suelte el teclado y luego a que se pulse la tecla de
+     * salto. Devuelve los ticks que espero (entre 1 y 30000).
+     */
+    function int waitJump() {
+        var int ticks;
+        do Input.waitRelease();
+        let ticks = 1;
+        while (~Input.isJump()) {
+            do Sys.wait(20);
+            let ticks = ticks + 1;
+            if (ticks > 30000) { let ticks = 1; }   // evita desbordar 16 bits
+        }
+        return ticks;
+    }
+}

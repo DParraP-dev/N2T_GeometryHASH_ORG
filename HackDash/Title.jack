@@ -1,0 +1,71 @@
+// ============================================================================
+//  GeometryHash  -  Juego "Hack Dash"
+//  Organizacion de Computadores - 2026
+//
+//  Archivo : Title.jack
+//  Clase   : Title
+//  Rol     : Portada del juego. Muestra el nombre, una escena de ejemplo
+//            hecha con las mismas clases del juego (cubo, pinchos y portal)
+//            y un aviso parpadeante hasta que el jugador pulsa ESPACIO.
+//
+//  Devuelve cuantos ticks tardo el jugador en pulsar: es la semilla del
+//  generador aleatorio, asi cada partida empieza distinta.
+//
+//  Memoria: los objetos de la portada se crean una vez y se liberan antes
+//  de empezar la partida.
+// ============================================================================
+
+class Title {
+
+    /** Dibuja la portada y espera ESPACIO. Devuelve la semilla. */
+    function int show() {
+        var Renderer r;
+        var Player cube;
+        var Spikes spikes;
+        var Portal portal;
+        var String press;
+        var int ticks;
+        var boolean visible;
+
+        let r = Renderer.new();
+        do r.clearBackground();
+        do Font.drawLabel(r, "HACK DASH", 116, 36, 8);
+
+        // Escena de ejemplo sobre una linea de suelo.
+        do r.fillRect(120, 150, 391, 152);
+        let cube = Player.new(168, 150, 0, 16);
+        do cube.draw(r);
+        let spikes = Spikes.new();
+        do spikes.spawn(240, 2, false, 150, true);
+        do spikes.draw(r);
+        let portal = Portal.new(102, 149);
+        do portal.spawn(330);
+        do portal.draw(r);
+
+        do Font.drawLabel(r, "UN CUBO. DOS MUNDOS. UN SOLO BOTON.", 117, 170, 2);
+        do Font.drawLabel(r, "ORGANIZACION DE COMPUTADORES 2026", 125, 238, 2);
+
+        // Aviso parpadeante mientras se espera la tecla (sin bloquear).
+        let press = "PULSA ESPACIO PARA EMPEZAR";
+        do Input.waitRelease();
+        let ticks = 1;
+        let visible = false;
+        while (~Input.isJump()) {
+            if ((ticks & 15) = 1) {                 // cada 16 ticks
+                let visible = ~visible;
+                if (visible) { do Font.drawText(r, press, 153, 204, 2); }
+                else         { do r.eraseRect(153, 204, 359, 213); }
+            }
+            do Sys.wait(20);
+            let ticks = ticks + 1;
+            if (ticks > 30000) { let ticks = 1; }
+        }
+
+        do press.dispose();
+        do portal.dispose();
+        do spikes.dispose();
+        do cube.dispose();
+        do r.dispose();
+        return ticks;
+    }
+}
