@@ -11,6 +11,7 @@
 //   --frames N         stop after N frames (default 300)
 //   --press A[-B]:KEY  hold KEY (Hack key code) during frames A..B
 //   --shot F:FILE      save the screen as PNG at frame F
+//   --bot              let tools/lib/bot.mjs play (ignores --press)
 //   --json             print the full report as JSON
 //
 // Exit code 0 when the program compiled and did not stop with an ERR code.
@@ -20,11 +21,12 @@ import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { KEYBOARD, buildVm, compileFolder, freeHeapWords, loadSimulator } from "./lib/n2t.mjs";
 import { screenToPng } from "./lib/png.mjs";
+import { createBot } from "./lib/bot.mjs";
 
 const MAX_STEPS_PER_FRAME = 2_000_000;
 
 export function parseArgs(argv) {
-  const opts = { program: null, frames: 300, presses: [], shots: [], json: false };
+  const opts = { program: null, frames: 300, presses: [], shots: [], json: false, bot: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--frames") opts.frames = Number(argv[++i]);
@@ -36,6 +38,7 @@ export function parseArgs(argv) {
       const [frame, ...file] = argv[++i].split(":");
       opts.shots.push({ frame: Number(frame), file: file.join(":") });
     } else if (a === "--json") opts.json = true;
+    else if (a === "--bot") opts.bot = true;
     else opts.program = a;
   }
   if (!opts.program) throw new Error("usage: node tools/sim.mjs <programDir> [options]");
@@ -63,7 +66,8 @@ export async function run(opts) {
   if (errors.length) return { ok: false, stage: "compile", errors, classes };
 
   const vm = buildVm(sim, code);
-  const input = opts.input ?? ((_, frame) => scriptedKey(opts.presses ?? [], frame));
+  const bot = opts.bot ? createBot() : null;
+  const input = bot?.input ?? opts.input ?? ((_, frame) => scriptedKey(opts.presses ?? [], frame));
 
   // Replace the real-time wait with a frame counter. The game still calls
   // Sys.wait once per tick, so a frame here is a game tick.
@@ -111,6 +115,8 @@ export async function run(opts) {
     errors: crashed ? [`program stopped with ERR${exitCode} at frame ${frame}`] : [],
     heap,
     freeHeap: freeHeapWords(vm),
+    stepsPerFrame: frame ? Math.round(steps / frame) : 0,
+    bot: bot?.stats ?? null,
   };
 }
 
@@ -119,7 +125,8 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   const report = await run(opts);
   if (opts.json) console.log(JSON.stringify(report, null, 2));
   else {
-    console.log(`${report.ok ? "OK" : "FAIL"} [${report.stage}] frames=${report.frames ?? 0} steps=${report.steps ?? 0} freeHeap=${report.freeHeap ?? "?"}`);
+    console.log(`${report.ok ? "OK" : "FAIL"} [${report.stage}] frames=${report.frames ?? 0} steps/frame=${report.stepsPerFrame ?? 0} freeHeap=${report.freeHeap ?? "?"}`);
+    if (report.bot) console.log(`  bot: ${JSON.stringify(report.bot)}`);
     for (const e of report.errors ?? []) console.log(`  ${e}`);
   }
   process.exit(report.ok ? 0 : 1);
