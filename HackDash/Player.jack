@@ -31,6 +31,7 @@
 class Player {
 
     field int x, y;          // Esquina superior-izquierda del cubo (px)
+    field int prevY;         // Y del tick anterior (para borrar solo lo necesario)
     field int size;          // Lado del cubo (cuadrado) en px
     field int vy;            // Velocidad vertical actual (px/tick)
     field int gravity;       // Aceleracion de la gravedad (px/tick^2)
@@ -54,6 +55,7 @@ class Player {
         let ceilY = ceil;
         let dir = 1;
         let y = floorY - size;  // apoyado justo encima del suelo
+        let prevY = y;
         let vy = 0;
         let gravity = 1;        // valores pequenos: la pantalla es de 256px
         let jumpImpulse = 11;   // altura maxima = 11+10+...+1 = 66 px
@@ -71,6 +73,7 @@ class Player {
         let vy = 0;
         let onGround = true;
         if (dir = 1) { let y = floorY - size; } else { let y = ceilY + 1; }
+        let prevY = y;
         return;
     }
 
@@ -92,6 +95,7 @@ class Player {
      * Integra gravedad y velocidad, y resuelve la colision con el suelo.
      */
     method void update() {
+        let prevY = y;
         let vy = vy + (gravity * dir);  // la gravedad tira hacia su superficie
         let y = y + vy;                 // actualiza posicion vertical
 
@@ -114,15 +118,34 @@ class Player {
      * Dibuja el cubo con el color de tinta actual. drawRectangle incluye
      * ambos extremos, por eso el lado va de x a x + size - 1: asi el cubo
      * mide exactamente 'size' px y nunca pisa la fila del suelo.
+     * Los ojos son dos huecos con el color de fondo que miran hacia donde
+     * avanza el mundo; en el techo el cubo va de cabeza (ojos abajo).
      */
     method void draw(Renderer r) {
+        var int ex, ey;
         do r.fillRect(x, y, (x + size) - 1, (y + size) - 1);
+        if (dir = 1) { let ex = x + 8; let ey = y + 4; }   // mira a la derecha
+        else         { let ex = x + 2; let ey = y + 8; }   // mira a la izquierda, de cabeza
+        do r.eraseRect(ex, ey, ex + 1, ey + 3);
+        do r.eraseRect(ex + 4, ey, ex + 5, ey + 3);
         return;
     }
 
-    /** Borra el cubo (pinta con el fondo) para redibujarlo en el tick. */
-    method void erase(Renderer r) {
-        do r.eraseRect(x, y, (x + size) - 1, (y + size) - 1);
+    /**
+     * Redibuja el cubo tras update(). En vez de borrar el cubo entero,
+     * borra solo la banda de filas que dejo libre al moverse y luego lo
+     * pinta en su nueva posicion: no parpadea al saltar.
+     */
+    method void render(Renderer r) {
+        var int x2;
+        let x2 = (x + size) - 1;
+        if (y > prevY) {   // bajo: queda libre la parte de arriba
+            do r.eraseRect(x, prevY, x2, Math.min(y, prevY + size) - 1);
+        }
+        if (y < prevY) {   // subio: queda libre la parte de abajo
+            do r.eraseRect(x, Math.max(y + size, prevY), x2, (prevY + size) - 1);
+        }
+        do draw(r);
         return;
     }
 

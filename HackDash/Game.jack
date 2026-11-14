@@ -102,7 +102,6 @@ class Game {
         var int i;
         var Spikes s;
 
-        do player.erase(renderer);
         do player.update();                     // integra gravedad/salto
 
         // Mover los pinchos activos (se desactivan solos al salir).
@@ -227,7 +226,7 @@ class Game {
      * ticks de juego. Ahora Hud lo dibuja solo cuando el puntaje cambia.
      */
     method void render() {
-        do player.draw(renderer);   // los pinchos se dibujan al moverse
+        do player.render(renderer);   // los pinchos se dibujan al moverse
         return;
     }
 
