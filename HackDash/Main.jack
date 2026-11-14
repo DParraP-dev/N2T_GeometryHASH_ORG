@@ -20,6 +20,7 @@ class Main {
         let seed = Title.show();    // portada; la semilla es el tiempo de reaccion
         let game = Game.new(seed);  // todos los objetos del juego, una sola vez
         while (true) {
+            do Input.waitRelease();       // que la tecla de inicio no cuente como salto
             do game.play();               // una partida completa
             let seed = Input.waitJump();  // ESPACIO para reintentar
             do game.reset(seed);
