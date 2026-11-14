@@ -120,22 +120,36 @@ class Renderer {
     //  delgados de 'speed' pixeles de ancho, y el resto queda intacto.
     // ------------------------------------------------------------------
 
+    /** Pinta un rectangulo con tinta (ink = true) o con fondo (false). */
+    method void paintRect(int x1, int y1, int x2, int y2, boolean ink) {
+        if (ink) { do fillRect(x1, y1, x2, y2); } else { do eraseRect(x1, y1, x2, y2); }
+        return;
+    }
+
     /**
      * Mueve una franja de las columnas [ox1..ox2] a [nx1..nx2] en las filas
      * y1..y2, tocando solo los pixeles que cambian. Funciona en ambos
      * sentidos. Si la franja salto mas que su propio ancho (no hay
      * solapamiento), borra la vieja y pinta la nueva.
+     * ink = true mueve una franja de tinta; ink = false mueve un HUECO
+     * (franja de fondo dentro de una zona pintada), con los colores al reves.
      */
-    method void moveSpan(int ox1, int ox2, int nx1, int nx2, int y1, int y2) {
+    method void shiftSpan(int ox1, int ox2, int nx1, int nx2, int y1, int y2, boolean ink) {
         if ((nx1 > ox2) | (nx2 < ox1)) {
-            do eraseRect(ox1, y1, ox2, y2);
-            do fillRect(nx1, y1, nx2, y2);
+            do paintRect(ox1, y1, ox2, y2, ~ink);
+            do paintRect(nx1, y1, nx2, y2, ink);
             return;
         }
-        if (nx1 < ox1) { do fillRect(nx1, y1, ox1 - 1, y2); }    // entra por la izquierda
-        if (nx1 > ox1) { do eraseRect(ox1, y1, nx1 - 1, y2); }   // sale por la izquierda
-        if (nx2 > ox2) { do fillRect(ox2 + 1, y1, nx2, y2); }    // entra por la derecha
-        if (nx2 < ox2) { do eraseRect(nx2 + 1, y1, ox2, y2); }   // sale por la derecha
+        if (nx1 < ox1) { do paintRect(nx1, y1, ox1 - 1, y2, ink); }    // entra por la izquierda
+        if (nx1 > ox1) { do paintRect(ox1, y1, nx1 - 1, y2, ~ink); }   // sale por la izquierda
+        if (nx2 > ox2) { do paintRect(ox2 + 1, y1, nx2, y2, ink); }    // entra por la derecha
+        if (nx2 < ox2) { do paintRect(nx2 + 1, y1, ox2, y2, ~ink); }   // sale por la derecha
+        return;
+    }
+
+    /** Mueve una franja de tinta (pinchos, portal). */
+    method void moveSpan(int ox1, int ox2, int nx1, int nx2, int y1, int y2) {
+        do shiftSpan(ox1, ox2, nx1, nx2, y1, y2, true);
         return;
     }
 
