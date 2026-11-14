@@ -6,17 +6,15 @@
 //  Clase   : Game
 //  Rol     : ORQUESTADOR central del juego. Es el "cerebro" que:
 //              - mantiene el bucle principal (game loop),
-//              - lee el teclado SIN bloquear (Keyboard.keyPressed),
-//              - actualiza la fisica del jugador y de los obstaculos,
-//              - detecta colisiones,
-//              - lleva el puntaje y lo dibuja,
-//              - controla el estado de la partida (jugando / game over).
+//              - lee el teclado SIN bloquear (via Input),
+//              - actualiza la fisica del cubo y mueve pinchos, portal y fondo,
+//              - genera grupos de pinchos y, tras 5 grupos, un portal,
+//              - al cruzar un portal: +1 punto, invierte colores, cambia de
+//                plano (suelo <-> techo) y sube la velocidad,
+//              - detecta colisiones y controla el fin de la partida.
 //
-//  Nota de version: esta es la FASE 1 (desplazamiento horizontal inferior,
-//  salto sobre el suelo). El portal, la inversion de colores y la Fase 2
-//  (techo + direccion inversa + velocidad progresiva) se anaden despues.
-//  Las piezas de arquitectura (Renderer con inversion, Obstacle.setGroundY)
-//  ya estan preparadas para esa evolucion.
+//  Fases:  impares = SUELO, mundo hacia la izquierda, colores normales.
+//          pares   = TECHO, mundo hacia la derecha, colores invertidos.
 //
 //  Constantes de pantalla Hack: 512 ancho x 256 alto.
 // ============================================================================
