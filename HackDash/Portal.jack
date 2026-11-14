@@ -33,19 +33,21 @@ class Portal {
         var int y;
         let width = 24;
         let shape = Strips.new(24);
-        do shape.add(0, 3, topRow + 6, bottomRow - 6);      // aro izquierdo
-        do shape.add(20, 23, topRow + 6, bottomRow - 6);    // aro derecho
+        // Las franjas que comparten filas van de izquierda a derecha
+        // (lo exige Strips.move para no pisarse a velocidad alta).
         do shape.add(6, 17, topRow, topRow + 2);            // tapa superior
-        do shape.add(3, 5, topRow + 3, topRow + 5);
-        do shape.add(18, 20, topRow + 3, topRow + 5);
         do shape.add(6, 17, bottomRow - 2, bottomRow);      // tapa inferior
+        do shape.add(3, 5, topRow + 3, topRow + 5);         // esquinas izquierdas
         do shape.add(3, 5, bottomRow - 5, bottomRow - 3);
-        do shape.add(18, 20, bottomRow - 5, bottomRow - 3);
+        do shape.add(0, 3, topRow + 6, bottomRow - 6);      // aro izquierdo
         let y = topRow + 12;                                // energia interior
         while ((y + 8) < (bottomRow - 10)) {
             do shape.add(10, 13, y, y + 7);
             let y = y + 16;
         }
+        do shape.add(20, 23, topRow + 6, bottomRow - 6);    // aro derecho
+        do shape.add(18, 20, topRow + 3, topRow + 5);       // esquinas derechas
+        do shape.add(18, 20, bottomRow - 5, bottomRow - 3);
         let active = false;
         return this;
     }
