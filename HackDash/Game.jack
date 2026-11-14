@@ -35,7 +35,8 @@ class Game {
     field int perStage;           // grupos antes de que aparezca el portal
     field int bannerTimer;        // ticks que le quedan al cartel de fase
 
-    // Distribucion vertical de la pantalla (filas):
+    // Distribucion vertical de la pantalla (filas). tools/lib/bot.mjs
+    // depende de estas filas y de las columnas del cubo (cubeColumn):
     //   0..17 marcador | 18..21 techo | 22..231 zona de juego
     //   232..235 suelo | 236..255 informacion de la fase
     field int floorY;             // primera fila del suelo
@@ -258,12 +259,15 @@ class Game {
      * (solapamiento de rectangulos, AABB, calculado en Spikes.hits).
      */
     method boolean collides() {
-        var int i;
+        var int i, px, py, ps;
         var Spikes s;
+        let px = player.getX();
+        let py = player.getY();
+        let ps = player.getSize();
         let i = 0;
         while (i < poolSize) {
             let s = pool[i];
-            if (s.hits(player.getX(), player.getY(), player.getSize())) {
+            if (s.hits(px, py, ps)) {
                 return true;
             }
             let i = i + 1;
