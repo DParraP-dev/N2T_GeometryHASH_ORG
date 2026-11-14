@@ -25,6 +25,7 @@ class Game {
 
     field Renderer renderer;      // capa de dibujo + color actual
     field Hud hud;                // marcador y mensajes en pantalla
+    field Scenery scenery;        // muescas del techo y suelo que se mueven con el mundo
     field Player player;          // el cubo del jugador
     field Array pool;             // pool fijo de Spikes (se reciclan)
     field int poolSize;
@@ -57,6 +58,7 @@ class Game {
         let dir = -1;                            // Fase 1: el mundo viene desde la derecha
         let renderer = Renderer.new();
         let hud = Hud.new(renderer);
+        let scenery = Scenery.new(19, 233);   // muescas dentro del techo y del suelo
         let rng = Random.new(seed);
         let player = Player.new(64, floorY, ceilY, 16); // cubo fijo a la izquierda
         let poolSize = 3;                        // nunca hay mas de 3 en pantalla
@@ -115,6 +117,7 @@ class Game {
         var Spikes s;
 
         do player.update();                     // integra gravedad/salto
+        do scenery.scroll(speed * dir, renderer);
 
         // Mover los pinchos activos (se desactivan solos al salir).
         let i = 0;
@@ -256,6 +259,7 @@ class Game {
         // Suelo: franja fina a lo ancho de la pantalla.
         do renderer.fillRect(0, ceilY - 3, 511, ceilY);     // techo
         do renderer.fillRect(0, floorY, 511, floorY + 3);   // suelo
+        do scenery.draw(renderer);
         do hud.drawScene(score, speed - 3, stage, roof);
         do hud.drawBanner(stage, roof);
         let bannerTimer = 45;         // ~1.5 s sin pinchos para reaccionar
@@ -294,6 +298,7 @@ class Game {
         do rng.dispose();
         do player.dispose();
         do hud.dispose();
+        do scenery.dispose();
         do renderer.dispose();
         do Memory.deAlloc(this);
         return;
