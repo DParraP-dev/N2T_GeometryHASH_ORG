@@ -135,14 +135,15 @@ Jack · VM de Nand2Tetris con el OS integrado · Hack, pantalla de 512x256 monoc
 
 ### En el VM Emulator del curso
 
-1. Compila la carpeta con el compilador oficial:
-   `tools/JackCompiler.sh HackDash` en macOS o Linux, o
-   `tools\JackCompiler.bat HackDash` en Windows. Se crean los `.vm`
+1. Compila la carpeta con el `JackCompiler` de la suite de Nand2Tetris (la
+   carpeta `tools/` de la suite, no la de este repositorio):
+   `JackCompiler.sh ruta/a/HackDash` en macOS o Linux, o
+   `JackCompiler.bat ruta\a\HackDash` en Windows. Se crean los `.vm`
    dentro de `HackDash/`.
 2. Abre el **VM Emulator** y carga la carpeta `HackDash` con *Load Program*.
 3. Elige *No animation* y lleva la velocidad al máximo.
-4. Pulsa *Run* y haz clic en el teclado del emulador para que reciba las
-   teclas.
+4. Pulsa *Run*. Si el juego no responde a las teclas, haz clic en el botón
+   del teclado del emulador.
 
 Usa el VM Emulator, no el CPU Emulator: el VM Emulator ejecuta las
 funciones del OS (`Screen`, `Keyboard`) de forma nativa, y el juego dibuja
