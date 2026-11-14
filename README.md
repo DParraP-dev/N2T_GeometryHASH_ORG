@@ -64,8 +64,6 @@ partida: invierte los colores en tiempo real, muda la acción del suelo al
 techo con la gravedad al revés y escala la velocidad en cada etapa, todo
 dentro de los límites de la plataforma Hack.
 
----
-
 ## Lo más destacado
 
 - **Cero memoria reservada durante el juego.** `Game.jack` crea todos los
@@ -133,20 +131,39 @@ con diagramas para la sustentación, está en
 
 Jack · VM de Nand2Tetris con el OS integrado · Hack, pantalla de 512x256 monocromática y enteros de 16 bits · Node.js 22+ para las herramientas de prueba
 
+## Cómo ejecutarlo
+
+### En el VM Emulator del curso
+
+1. Compila la carpeta con el compilador oficial:
+   `tools/JackCompiler.sh HackDash` en macOS o Linux, o
+   `tools\JackCompiler.bat HackDash` en Windows. Se crean los `.vm`
+   dentro de `HackDash/`.
+2. Abre el **VM Emulator** y carga la carpeta `HackDash` con *Load Program*.
+3. Elige *No animation* y lleva la velocidad al máximo.
+4. Pulsa *Run* y haz clic en el teclado del emulador para que reciba las
+   teclas.
+
+Usa el VM Emulator, no el CPU Emulator: el VM Emulator ejecuta las
+funciones del OS (`Screen`, `Keyboard`) de forma nativa, y el juego dibuja
+cientos de rectángulos por tick.
+
+### Sin Java
+
+`node tools/build.mjs HackDash` compila con el compilador del IDE web
+oficial y deja los `.vm` en `build/HackDash/`. La preparación está en
+[tools/README.md](tools/README.md).
+
+### Pruebas automáticas
+
+```bash
+npm test
+```
+
+## Licencia
+
+MIT. Ver [LICENSE](LICENSE).
+
 ---
 
-## 9. Cómo compilar y ejecutar
-
-> El equipo usa un script `traductorVM` propio para traducir el programa a assembler; el flujo general en N2T es:
-
-1. Compilar los `.jack` de `src/` con el **Jack Compiler** → genera los `.vm`.
-2. Cargar la carpeta en el **VM Emulator** de la N2T Software Suite (o traducir a `.asm` con el traductor VM y correr en el **CPU Emulator**).
-3. Ejecutar. El juego arranca en la pantalla de juego de la Fase 1.
-
----
-
-## 10. Equipo
-
-Proyecto grupal — Organización de Computadores, 2026.
-
-_(Añadir aquí los integrantes del grupo.)_
+<p align="center">Organización de Computadores · 2026</p>
