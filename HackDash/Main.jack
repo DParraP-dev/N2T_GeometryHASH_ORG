@@ -17,7 +17,7 @@ class Main {
     function void main() {
         var Game game;
         do Font.init();          // tabla de letras (una vez por programa)
-        let game = Game.new();   // Construye el orquestador del juego
+        let game = Game.new(1);  // Construye el orquestador (semilla fija por ahora)
         do game.run();           // Cede el control al bucle principal
         do game.dispose();       // Libera memoria al terminar la partida
         return;

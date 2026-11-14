@@ -26,7 +26,10 @@ class Game {
     field Renderer renderer;      // capa de dibujo + color actual
     field Hud hud;                // marcador y mensajes en pantalla
     field Player player;          // el cubo del jugador
-    field Obstacle obstacle;      // obstaculo activo (Fase 1: uno a la vez)
+    field Array pool;             // pool fijo de Spikes (se reciclan)
+    field int poolSize;
+    field Random rng;             // varia pinchos y distancias
+    field int gap;                // px de mundo que faltan para el siguiente grupo
 
     field int groundY;            // Y de la superficie del suelo
     field int score;              // puntaje acumulado
@@ -35,12 +38,21 @@ class Game {
     field boolean running;        // true mientras la partida sigue viva
 
     /** Construye el juego y todos sus componentes en estado inicial. */
-    constructor Game new() {
+    constructor Game new(int seed) {
+        var int i;
         let groundY = 220;                       // suelo cerca del borde inferior
         let renderer = Renderer.new();
         let hud = Hud.new(renderer);
-        let player = Player.new(60, groundY, 14); // cubo fijo a la izquierda
-        let obstacle = Obstacle.new(511, groundY, 12, 24);
+        let rng = Random.new(seed);
+        let player = Player.new(60, groundY, 16); // cubo fijo a la izquierda
+        let poolSize = 3;                        // nunca hay mas de 3 en pantalla
+        let pool = Array.new(poolSize);
+        let i = 0;
+        while (i < poolSize) {
+            let pool[i] = Spikes.new();
+            let i = i + 1;
+        }
+        let gap = 120;
         let score = 0;
         let speed = 4;
         let tickDelay = 30;                      // ~33 fps aprox.
@@ -79,20 +91,28 @@ class Game {
 
     /** Avanza la simulacion: fisica del cubo, obstaculos, colisiones. */
     method void updateWorld() {
-        var boolean recycled;
+        var int i;
+        var Spikes s;
 
         do player.erase(renderer);
-        do obstacle.erase(renderer);
-
         do player.update();                     // integra gravedad/salto
 
-        let recycled = obstacle.moveLeft(speed); // desplaza el obstaculo
-        if (recycled) {
-            // El obstaculo se esquivo con exito: punto y reaparicion.
-            let score = score + 1;
-            do hud.drawScore(score);              // solo cuando cambia
-            do obstacle.resetTo(511);
+        // Mover los pinchos activos. Al salir por la izquierda se desactivan:
+        // el grupo se esquivo con exito y suma un punto.
+        let i = 0;
+        while (i < poolSize) {
+            let s = pool[i];
+            if (s.isActive()) {
+                do s.move(-speed, renderer);
+                if (~s.isActive()) {
+                    let score = score + 1;
+                    do hud.drawScore(score);    // solo cuando cambia
+                }
+            }
+            let i = i + 1;
         }
+        let gap = gap - speed;
+        if (gap < 1) { do spawnSpikes(); }
 
         if (collides()) {
             let running = false;   // colision -> fin de la partida
@@ -101,24 +121,45 @@ class Game {
     }
 
     /**
-     * Deteccion de colision por solapamiento de rectangulos (AABB)
-     * entre el cubo y el obstaculo.
+     * Genera un grupo de pinchos en el borde derecho, reutilizando un
+     * objeto libre del pool, y sortea la distancia hasta el siguiente.
+     */
+    method void spawnSpikes() {
+        var int i, count;
+        var boolean tall;
+        var Spikes s;
+        let i = 0;
+        while (i < poolSize) {
+            let s = pool[i];
+            if (~s.isActive()) {
+                let count = 1 + rng.below(3);                 // 1 a 3 pinchos
+                let tall = (count < 3) & (rng.below(4) = 0);  // 1 de cada 4 es alto
+                do s.spawn(512, count, tall, groundY, true);
+                // Separacion minima = ancho del grupo + un salto completo
+                // (~24 ticks en el aire) + margen, mas un extra aleatorio.
+                let gap = (s.getWidth() + (speed * 24)) + (16 + rng.below(120));
+                return;
+            }
+            let i = i + 1;
+        }
+        let gap = 16;   // pool lleno: reintentar pronto
+        return;
+    }
+
+    /**
+     * Colision del cubo contra cualquier grupo de pinchos activo
+     * (solapamiento de rectangulos, AABB, calculado en Spikes.hits).
      */
     method boolean collides() {
-        var int px, py, ps;
-        var int ox, oy, ow, oh;
-        let px = player.getX();
-        let py = player.getY();
-        let ps = player.getSize();
-        let ox = obstacle.getX();
-        let oy = obstacle.getY();
-        let ow = obstacle.getWidth();
-        let oh = obstacle.getHeight();
-
-        // Hay colision solo si se solapan en ambos ejes a la vez.
-        if ((px < (ox + ow)) & ((px + ps) > ox) &
-            (py < (oy + oh)) & ((py + ps) > oy)) {
-            return true;
+        var int i;
+        var Spikes s;
+        let i = 0;
+        while (i < poolSize) {
+            let s = pool[i];
+            if (s.hits(player.getX(), player.getY(), player.getSize())) {
+                return true;
+            }
+            let i = i + 1;
         }
         return false;
     }
@@ -139,8 +180,7 @@ class Game {
      * ticks de juego. Ahora Hud lo dibuja solo cuando el puntaje cambia.
      */
     method void render() {
-        do player.draw(renderer);
-        do obstacle.draw(renderer);
+        do player.draw(renderer);   // los pinchos se dibujan al moverse
         return;
     }
 
@@ -152,8 +192,17 @@ class Game {
 
     /** Libera toda la memoria del juego. */
     method void dispose() {
+        var int i;
+        var Spikes s;
+        let i = 0;
+        while (i < poolSize) {
+            let s = pool[i];
+            do s.dispose();
+            let i = i + 1;
+        }
+        do pool.dispose();
+        do rng.dispose();
         do player.dispose();
-        do obstacle.dispose();
         do hud.dispose();
         do renderer.dispose();
         do Memory.deAlloc(this);
