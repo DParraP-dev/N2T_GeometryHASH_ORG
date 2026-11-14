@@ -4,11 +4,13 @@
 //
 //  Archivo : Scenery.jack
 //  Clase   : Scenery
-//  Rol     : Fondo en movimiento. El techo y el suelo tienen muescas (huecos
-//            con el color de fondo) que se desplazan a la velocidad del
-//            mundo, como una cinta transportadora. La pantalla siempre
-//            transmite avance aunque no haya pinchos a la vista (requisito
-//            "Fondo Movil / Entorno Dinamico").
+//  Rol     : Fondo en movimiento. La superficie activa (suelo o techo) tiene
+//            muescas (huecos con el color de fondo) que se desplazan a la
+//            velocidad del mundo, como una cinta transportadora. La pantalla
+//            siempre transmite avance aunque no haya pinchos a la vista
+//            (requisito "Fondo Movil / Entorno Dinamico"). Solo se mueve la
+//            superficie activa: la mitad de trabajo por tick, y ademas indica
+//            al jugador en que plano esta.
 //
 //  Las muescas miden 12 px y se repiten cada 64 px, de modo que basta un
 //  desplazamiento 'offset' en [0, 64) para describir todo el riel:
@@ -20,14 +22,18 @@
 class Scenery {
 
     field int offset;      // desplazamiento actual, en [0, 64)
-    field int topRow;      // primera fila de las muescas del techo (2 px de alto)
-    field int bottomRow;   // primera fila de las muescas del suelo
+    field int row;         // primera fila de las muescas (2 px de alto)
 
-    constructor Scenery new(int top, int bottom) {
+    constructor Scenery new(int startRow) {
         let offset = 0;
-        let topRow = top;
-        let bottomRow = bottom;
+        let row = startRow;
         return this;
+    }
+
+    /** Cambia la superficie con muescas (se llama antes de repintar). */
+    method void setRow(int newRow) {
+        let row = newRow;
+        return;
     }
 
     /** Abre las muescas (hole = true) o las vuelve a rellenar (false). */
@@ -36,14 +42,13 @@ class Scenery {
         let k = -1;
         while (k < 8) {
             let x = (k * 64) + offset;
-            do r.paintRect(x, topRow, x + 11, topRow + 1, ~hole);
-            do r.paintRect(x, bottomRow, x + 11, bottomRow + 1, ~hole);
+            do r.paintRect(x, row, x + 11, row + 1, ~hole);
             let k = k + 1;
         }
         return;
     }
 
-    /** Abre las muescas sobre el techo y el suelo recien pintados. */
+    /** Abre las muescas sobre la superficie recien pintada. */
     method void draw(Renderer r) {
         do paint(r, true);
         return;
@@ -57,8 +62,7 @@ class Scenery {
             let k = -1;
             while (k < 8) {
                 let x = (k * 64) + offset;
-                do r.shiftSpan(x, x + 11, x + dx, (x + 11) + dx, topRow, topRow + 1, false);
-                do r.shiftSpan(x, x + 11, x + dx, (x + 11) + dx, bottomRow, bottomRow + 1, false);
+                do r.shiftSpan(x, x + 11, x + dx, (x + 11) + dx, row, row + 1, false);
                 let k = k + 1;
             }
             let offset = next;
