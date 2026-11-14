@@ -70,7 +70,7 @@ class Hud {
     }
 
     method void eraseBanner() {
-        do renderer.eraseRect(190, 96, 322, 140);
+        do renderer.eraseRect(190, 96, 350, 140);   // cabe una fase de 3 cifras
         return;
     }
 
