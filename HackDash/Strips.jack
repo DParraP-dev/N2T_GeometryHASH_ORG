@@ -1,0 +1,99 @@
+// ============================================================================
+//  GeometryHash  -  Juego "Hack Dash"
+//  Organizacion de Computadores - 2026
+//
+//  Archivo : Strips.jack
+//  Clase   : Strips
+//  Rol     : Figura hecha de franjas horizontales (rectangulos). Es la pieza
+//            de dibujo comun de los pinchos y del portal.
+//
+//  Cada franja guarda sus columnas RELATIVAS al borde izquierdo de la figura
+//  (x1..x2) y sus filas ABSOLUTAS (y1..y2). Asi la figura se mueve en
+//  horizontal cambiando un solo numero (el origen ox) y cada franja se
+//  redibuja con Renderer.moveSpan: solo cambian los bordes, sin parpadeo.
+//
+//  Un pincho triangular, por ejemplo, son 4 franjas cada vez mas angostas:
+//
+//            ##          franja 3
+//          ######        franja 2
+//        ##########      franja 1
+//      ##############    franja 0
+// ============================================================================
+
+class Strips {
+
+    field Array x1, x2, y1, y2;   // columnas relativas y filas absolutas
+    field int count;              // franjas en uso
+    field int capacity;           // franjas reservadas
+
+    constructor Strips new(int cap) {
+        let capacity = cap;
+        let x1 = Array.new(cap);
+        let x2 = Array.new(cap);
+        let y1 = Array.new(cap);
+        let y2 = Array.new(cap);
+        let count = 0;
+        return this;
+    }
+
+    /** Vacia la figura para reutilizar la memoria (sin liberar). */
+    method void clear() {
+        let count = 0;
+        return;
+    }
+
+    /** Agrega una franja. Se ignora si ya no hay espacio. */
+    method void add(int ax1, int ax2, int ay1, int ay2) {
+        if (count < capacity) {
+            let x1[count] = ax1;
+            let x2[count] = ax2;
+            let y1[count] = ay1;
+            let y2[count] = ay2;
+            let count = count + 1;
+        }
+        return;
+    }
+
+    /** Pinta la figura con su borde izquierdo en la columna ox. */
+    method void draw(Renderer r, int ox) {
+        var int i;
+        let i = 0;
+        while (i < count) {
+            do r.fillRect(ox + x1[i], y1[i], ox + x2[i], y2[i]);
+            let i = i + 1;
+        }
+        return;
+    }
+
+    /** Borra la figura (la pinta con el color de fondo). */
+    method void erase(Renderer r, int ox) {
+        var int i;
+        let i = 0;
+        while (i < count) {
+            do r.eraseRect(ox + x1[i], y1[i], ox + x2[i], y2[i]);
+            let i = i + 1;
+        }
+        return;
+    }
+
+    /** Desplaza la figura dx columnas redibujando solo los bordes. */
+    method void move(Renderer r, int ox, int dx) {
+        var int i, nx;
+        let nx = ox + dx;
+        let i = 0;
+        while (i < count) {
+            do r.moveSpan(ox + x1[i], ox + x2[i], nx + x1[i], nx + x2[i], y1[i], y2[i]);
+            let i = i + 1;
+        }
+        return;
+    }
+
+    method void dispose() {
+        do x1.dispose();
+        do x2.dispose();
+        do y1.dispose();
+        do y2.dispose();
+        do Memory.deAlloc(this);
+        return;
+    }
+}

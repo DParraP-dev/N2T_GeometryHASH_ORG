@@ -53,13 +53,8 @@ class Renderer {
 
     /** Pinta toda la pantalla con el color de fondo actual. */
     method void clearBackground() {
-        // clearScreen deja todo en blanco; si el fondo es negro, lo
-        // rellenamos manualmente con un rectangulo del tamano completo.
-        do Screen.clearScreen();
-        if (inverted) {
-            do Screen.setColor(true);          // negro
-            do Screen.drawRectangle(0, 0, 511, 255);
-        }
+        do Screen.setColor(bgColor());
+        do Screen.drawRectangle(0, 0, 511, 255);
         return;
     }
 
@@ -112,6 +107,35 @@ class Renderer {
     method void eraseRect(int x1, int y1, int x2, int y2) {
         do Screen.setColor(bgColor());
         do safeRect(x1, y1, x2, y2);
+        return;
+    }
+
+    // ------------------------------------------------------------------
+    //  Dibujo incremental (sin parpadeo).
+    //
+    //  Borrar un objeto completo y volver a pintarlo en cada tick hace que
+    //  parpadee y cuesta 2 rectangulos del tamano del objeto. Cuando una
+    //  franja horizontal se desplaza unos pocos pixeles, basta con pintar
+    //  el borde que ENTRA y borrar el borde que SALE: dos rectangulos
+    //  delgados de 'speed' pixeles de ancho, y el resto queda intacto.
+    // ------------------------------------------------------------------
+
+    /**
+     * Mueve una franja de las columnas [ox1..ox2] a [nx1..nx2] en las filas
+     * y1..y2, tocando solo los pixeles que cambian. Funciona en ambos
+     * sentidos. Si la franja salto mas que su propio ancho (no hay
+     * solapamiento), borra la vieja y pinta la nueva.
+     */
+    method void moveSpan(int ox1, int ox2, int nx1, int nx2, int y1, int y2) {
+        if ((nx1 > ox2) | (nx2 < ox1)) {
+            do eraseRect(ox1, y1, ox2, y2);
+            do fillRect(nx1, y1, nx2, y2);
+            return;
+        }
+        if (nx1 < ox1) { do fillRect(nx1, y1, ox1 - 1, y2); }    // entra por la izquierda
+        if (nx1 > ox1) { do eraseRect(ox1, y1, nx1 - 1, y2); }   // sale por la izquierda
+        if (nx2 > ox2) { do fillRect(ox2 + 1, y1, nx2, y2); }    // entra por la derecha
+        if (nx2 < ox2) { do eraseRect(nx2 + 1, y1, ox2, y2); }   // sale por la derecha
         return;
     }
 
