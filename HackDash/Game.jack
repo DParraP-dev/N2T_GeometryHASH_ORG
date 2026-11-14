@@ -35,7 +35,13 @@ class Game {
     field int spawned;            // grupos de pinchos generados en esta etapa
     field int perStage;           // grupos antes de que aparezca el portal
 
-    field int groundY;            // Y de la superficie del suelo
+    // Distribucion vertical de la pantalla (filas):
+    //   0..17 marcador | 18..21 techo | 22..231 zona de juego
+    //   232..235 suelo | 236..255 informacion de la fase
+    field int floorY;             // primera fila del suelo
+    field int ceilY;              // ultima fila del techo
+    field boolean roof;           // true en las fases de techo (colores invertidos)
+    field int dir;                // sentido del mundo: -1 hacia la izquierda, +1 hacia la derecha
     field int score;              // puntaje acumulado
     field int speed;              // velocidad de desplazamiento (px/tick)
     field int tickDelay;          // ms de espera por tick (controla fluidez)
@@ -44,11 +50,14 @@ class Game {
     /** Construye el juego y todos sus componentes en estado inicial. */
     constructor Game new(int seed) {
         var int i;
-        let groundY = 220;                       // suelo cerca del borde inferior
+        let floorY = 232;
+        let ceilY = 21;
+        let roof = false;
+        let dir = -1;                            // Fase 1: el mundo viene desde la derecha
         let renderer = Renderer.new();
         let hud = Hud.new(renderer);
         let rng = Random.new(seed);
-        let player = Player.new(60, groundY, 21, 16); // cubo fijo a la izquierda
+        let player = Player.new(64, floorY, ceilY, 16); // cubo fijo a la izquierda
         let poolSize = 3;                        // nunca hay mas de 3 en pantalla
         let pool = Array.new(poolSize);
         let i = 0;
@@ -57,7 +66,7 @@ class Game {
             let i = i + 1;
         }
         let gap = 120;
-        let portal = Portal.new(26, groundY - 6);   // ocupa toda la zona de juego
+        let portal = Portal.new(ceilY + 5, floorY - 5);   // ocupa toda la zona de juego
         let stage = 1;
         let spawned = 0;
         let perStage = 5;
@@ -108,10 +117,10 @@ class Game {
         let i = 0;
         while (i < poolSize) {
             let s = pool[i];
-            if (s.isActive()) { do s.move(-speed, renderer); }
+            if (s.isActive()) { do s.move(speed * dir, renderer); }
             let i = i + 1;
         }
-        if (portal.isActive()) { do portal.move(-speed, renderer); }
+        if (portal.isActive()) { do portal.move(speed * dir, renderer); }
 
         // Tras 'perStage' grupos aparece el portal; mientras esta en
         // pantalla no se generan pinchos.
@@ -120,7 +129,7 @@ class Game {
             if (spawned < perStage) {
                 do spawnSpikes();
             } else {
-                do portal.spawn(512);
+                do portal.spawn(spawnX(portal.getWidth()));
             }
         }
         do checkPortal();
@@ -132,7 +141,17 @@ class Game {
     }
 
     /**
-     * Genera un grupo de pinchos en el borde derecho, reutilizando un
+     * Columna donde nace un objeto de ancho w: justo fuera de la pantalla,
+     * en el borde por donde entra el mundo (derecha en el suelo, izquierda
+     * en el techo).
+     */
+    method int spawnX(int w) {
+        if (dir < 0) { return 512; }
+        return -w;
+    }
+
+    /**
+     * Genera un grupo de pinchos en el borde de entrada, reutilizando un
      * objeto libre del pool, y sortea la distancia hasta el siguiente.
      */
     method void spawnSpikes() {
@@ -145,7 +164,8 @@ class Game {
             if (~s.isActive()) {
                 let count = 1 + rng.below(3);                 // 1 a 3 pinchos
                 let tall = (count < 3) & (rng.below(4) = 0);  // 1 de cada 4 es alto
-                do s.spawn(512, count, tall, groundY, true);
+                if (roof) { do s.spawn(spawnX(count * 16), count, tall, ceilY, false); }
+                else      { do s.spawn(spawnX(count * 16), count, tall, floorY, true); }
                 let spawned = spawned + 1;
                 // Separacion minima = ancho del grupo + un salto completo
                 // (~24 ticks en el aire) + margen, mas un extra aleatorio.
@@ -160,18 +180,22 @@ class Game {
 
     /** Detecta si el centro del portal ya paso el centro del cubo. */
     method void checkPortal() {
+        var int pc;
         if (portal.isActive()) {
-            if (portal.centerX() < (player.getX() + (player.getSize() / 2))) {
-                do enterPortal();
-            }
+            let pc = player.getX() + (player.getSize() / 2);
+            if ((dir < 0) & (portal.centerX() < pc)) { do enterPortal(); return; }
+            if ((dir > 0) & (portal.centerX() > pc)) { do enterPortal(); }
         }
         return;
     }
 
     /**
-     * Cruce del portal: +1 punto, INVERSION DE COLORES y etapa nueva.
-     * Toda la escena se repinta con la paleta invertida: como cada clase
-     * pide "tinta" o "fondo" al Renderer, basta con un toggleInvert().
+     * Cruce del portal: +1 punto, INVERSION DE COLORES y cambio de plano.
+     *  - Colores: cada clase pide "tinta" o "fondo" al Renderer, asi que
+     *    toda la escena se invierte con un solo toggleInvert().
+     *  - Plano: la accion pasa del suelo al techo (o al reves), la gravedad
+     *    del cubo se invierte y el mundo cambia de sentido. En el techo el
+     *    cubo queda a la derecha y avanza de derecha a izquierda.
      */
     method void enterPortal() {
         var int i;
@@ -179,6 +203,9 @@ class Game {
         let score = score + 1;
         let stage = stage + 1;
         do renderer.toggleInvert();
+        let roof = ~roof;
+        let dir = -dir;
+        if (roof) { do player.flip(512 - 64 - 16); } else { do player.flip(64); }
         do portal.deactivate();
         let i = 0;
         while (i < poolSize) {        // los pinchos ya superados desaparecen
@@ -214,7 +241,8 @@ class Game {
     method void drawStaticScene() {
         do renderer.clearBackground();
         // Suelo: franja fina a lo ancho de la pantalla.
-        do renderer.fillRect(0, groundY, 511, groundY + 3);
+        do renderer.fillRect(0, ceilY - 3, 511, ceilY);     // techo
+        do renderer.fillRect(0, floorY, 511, floorY + 3);   // suelo
         do hud.drawAll(score);
         return;
     }
