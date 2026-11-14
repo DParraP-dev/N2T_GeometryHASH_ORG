@@ -1,29 +1,68 @@
-# GeometryHash — "Hack Dash"
+<p align="center">
+  <img src=".github/banner.webp" alt="Hack Dash: el cubo cruza un portal y toda la pantalla se invierte" width="100%" />
+</p>
 
-> Videojuego de plataformas y reflejos desarrollado **íntegramente en lenguaje Jack** sobre la plataforma **Nand2Tetris (N2T)**.
-> Proyecto de la asignatura **Organización de Computadores — 2026**.
+<h1 align="center">Hack Dash</h1>
 
----
+<p align="center"><em>Un cubo, dos mundos y un solo botón. Un juego de plataformas en Jack que invierte sus colores y su gravedad en cada portal.</em></p>
 
-## 1. Concepto del juego
+<p align="center">
+  <img alt="Jack" src="https://img.shields.io/badge/Jack-Nand2Tetris-1F6FEB?style=flat" />
+  <img alt="Hack 16 bits" src="https://img.shields.io/badge/Hack-16_bits-555555?style=flat" />
+  <img alt="Node.js 22+" src="https://img.shields.io/badge/Node.js_22+-pruebas-5FA04E?style=flat&logo=nodedotjs&logoColor=white" />
+  <img alt="License MIT" src="https://img.shields.io/badge/license-MIT-c8542a?style=flat" />
+  <img alt="status WIP" src="https://img.shields.io/badge/status-WIP-e0a642?style=flat" />
+</p>
 
-**Hack Dash** es un juego de un solo botón. Un cubo avanza de forma **continua y automática** por el escenario; el jugador solo controla el **salto**, calculando con precisión el momento para esquivar los obstáculos que aparecen en su camino.
+Hack Dash es un juego de reflejos escrito por completo en Jack para la
+computadora Hack de Nand2Tetris. Un cubo avanza sin detenerse y el jugador
+solo decide cuándo saltar. Cada portal suma un punto, invierte todos los
+colores de la pantalla, lleva la acción del suelo al techo y acelera el
+mundo. Es el proyecto final de Organización de Computadores 2026.
 
-El factor diferenciador es que el juego **cambia sus propias reglas a mitad de partida**: al cruzar un portal invierte los colores de la pantalla en tiempo real, traslada la acción del suelo al techo e incrementa la velocidad de forma progresiva.
+> **Video de demostración (YouTube):** _pendiente. Se agrega aquí antes de la sustentación._
 
-| Fase | Mecánica |
-|------|----------|
-| **Fase 1** | Avance de izquierda a derecha en la parte inferior. Salto sobre el suelo para esquivar obstáculos. |
-| **Portal** | Al cruzarlo: +1 punto e **inversión de colores** (fondo blanco/negro ↔ negro/blanco). |
-| **Fase 2** | *(en desarrollo)* Inversión espacial: la acción pasa al **techo**, el cubo va de derecha a izquierda y la **velocidad aumenta** progresivamente. |
+## Integrantes
 
----
+- Pablo Manjarres
+- Daniel Parra Paternina
+- Andrés Felipe Rengifo Zapata
 
-## 2. Estado actual
+## Cómo se juega
 
-- ✅ **Fase 1 implementada**: avance continuo, salto con física (gravedad), obstáculos reciclados, detección de colisiones, puntaje en pantalla y game over.
-- 🔜 **Portal + inversión de colores** (la arquitectura ya está preparada: ver `Renderer`).
-- 🔜 **Fase 2**: techo, movimiento inverso y velocidad progresiva.
+| Tecla | Acción |
+|-------|--------|
+| `ESPACIO` o `↑` | Saltar. En el techo el salto va hacia abajo. |
+| `ESPACIO` en la portada o tras perder | Empezar o reintentar. |
+
+| Portada | Fase de suelo |
+|:-------:|:-------------:|
+| <img src="docs/img/portada.png" alt="Portada de Hack Dash" width="400" /> | <img src="docs/img/fase-1.png" alt="Fase de suelo con pinchos" width="400" /> |
+| **Fase de techo invertida** | **Fin de partida** |
+| <img src="docs/img/fase-2.png" alt="Fase de techo con colores invertidos" width="400" /> | <img src="docs/img/game-over.png" alt="Cartel de fin de partida" width="400" /> |
+
+### Mecánicas
+
+- **Fase de suelo.** El cubo corre de izquierda a derecha sobre el suelo y
+  salta grupos de 1 a 3 pinchos. La distancia entre grupos es aleatoria.
+- **Portal.** Tras 5 grupos de pinchos aparece un aro que ocupa toda la
+  altura. Cruzarlo suma un punto e invierte la paleta: fondo blanco con
+  elementos negros pasa a fondo negro con elementos blancos.
+- **Fase de techo.** Al otro lado del portal la gravedad apunta hacia
+  arriba. El cubo cuelga del techo, va de cabeza, avanza de derecha a
+  izquierda y los pinchos cuelgan del techo. El siguiente portal lo
+  devuelve al suelo.
+- **Velocidad progresiva.** Cada portal sube la velocidad del mundo, de
+  4 a 10 píxeles por tick.
+
+### Factor diferenciador
+
+Los juegos en Jack que suelen encontrarse en línea (el Pong del curso,
+Snake, Tetris, corredores sin fin) mantienen un solo plano y una sola
+paleta durante toda la partida. Hack Dash cambia sus reglas a mitad de la
+partida: invierte los colores en tiempo real, muda la acción del suelo al
+techo con la gravedad al revés y escala la velocidad en cada etapa, todo
+dentro de los límites de la plataforma Hack.
 
 ---
 
