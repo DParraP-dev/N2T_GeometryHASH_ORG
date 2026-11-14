@@ -77,23 +77,13 @@ class Game {
 
     /** Deja todo listo para una partida nueva (Fase 1, velocidad inicial). */
     method void reset(int seed) {
-        var int i;
-        var Spikes s;
         do rng.reseed(seed);
         do renderer.setInverted(false);
         let roof = false;
         let dir = -1;                            // Fase 1: el mundo viene desde la derecha
-        do player.reset(64);
-        let i = 0;
-        while (i < poolSize) {
-            let s = pool[i];
-            do s.deactivate();
-            let i = i + 1;
-        }
-        do portal.deactivate();
-        let gap = 0;
+        do player.reset(cubeColumn());
+        do clearWorld();
         let stage = 1;
-        let spawned = 0;
         let bannerTimer = 0;
         let score = 0;
         let speed = 4;
@@ -229,25 +219,37 @@ class Game {
      *    cubo queda a la derecha y avanza de derecha a izquierda.
      */
     method void enterPortal() {
-        var int i;
-        var Spikes s;
         let score = score + 1;
         let stage = stage + 1;
         if (speed < 10) { let speed = speed + 1; }   // cada etapa es mas rapida
         do renderer.toggleInvert();
         let roof = ~roof;
         let dir = -dir;
-        if (roof) { do player.flip(512 - 64 - 16); } else { do player.flip(64); }
-        do portal.deactivate();
+        do player.flip(cubeColumn());
+        do clearWorld();              // los pinchos ya superados desaparecen
+        do drawStaticScene();         // el respiro lo da el cartel de fase
+        return;
+    }
+
+    /** Columna fija del cubo: 64 en el suelo, 432 (lado derecho) en el techo. */
+    method int cubeColumn() {
+        if (roof) { return 512 - 64 - 16; }
+        return 64;
+    }
+
+    /** Saca de juego pinchos y portal y reinicia el conteo de la etapa. */
+    method void clearWorld() {
+        var int i;
+        var Spikes s;
         let i = 0;
-        while (i < poolSize) {        // los pinchos ya superados desaparecen
+        while (i < poolSize) {
             let s = pool[i];
             do s.deactivate();
             let i = i + 1;
         }
+        do portal.deactivate();
         let spawned = 0;
-        let gap = 0;                  // el respiro lo da el cartel de fase
-        do drawStaticScene();
+        let gap = 0;
         return;
     }
 
