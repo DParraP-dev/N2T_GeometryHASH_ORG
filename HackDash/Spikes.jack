@@ -1,0 +1,111 @@
+// ============================================================================
+//  GeometryHash  -  Juego "Hack Dash"
+//  Organizacion de Computadores - 2026
+//
+//  Archivo : Spikes.jack
+//  Clase   : Spikes
+//  Rol     : Grupo de 1 a 3 pinchos triangulares que el jugador debe saltar.
+//            Se apoyan en el suelo (apuntan hacia arriba) o cuelgan del
+//            techo (apuntan hacia abajo) y se desplazan en cualquier sentido.
+//
+//  Reciclaje: Game tiene un pool fijo de objetos Spikes. Cuando uno sale de
+//  la pantalla se desactiva y luego se reutiliza con spawn(); nunca se crean
+//  ni destruyen objetos durante la partida, asi el heap no se fragmenta.
+//
+//  Cada pincho mide 16 px de ancho y se dibuja con 4 franjas (Strips) de
+//  4 px de alto (pincho normal, 16 px) o 6 px (pincho alto, 24 px).
+// ============================================================================
+
+class Spikes {
+
+    field Strips shape;      // franjas que forman los pinchos
+    field int x;             // borde izquierdo (puede ser negativo)
+    field int width;         // 16 * cantidad de pinchos
+    field int top, height;   // caja vertical (filas absolutas)
+    field boolean active;    // true si esta en pantalla
+
+    constructor Spikes new() {
+        let shape = Strips.new(12);   // hasta 3 pinchos x 4 franjas
+        let active = false;
+        return this;
+    }
+
+    method boolean isActive() { return active; }
+    method int getWidth()     { return width; }
+
+    /**
+     * Prepara un grupo nuevo.
+     *  startX     : columna inicial (normalmente fuera de pantalla).
+     *  count      : cantidad de pinchos (1..3).
+     *  tall       : true para pinchos de 24 px en vez de 16 px.
+     *  surfaceRow : fila de la superficie donde se apoyan.
+     *  up         : true = en el suelo, apuntan arriba; false = en el techo.
+     */
+    method void spawn(int startX, int count, boolean tall, int surfaceRow, boolean up) {
+        var int i, k, step, row;
+        let x = startX;
+        let width = count * 16;
+        let step = 4;
+        if (tall) { let step = 6; }
+        let height = step * 4;
+        if (up) { let top = surfaceRow - height; } else { let top = surfaceRow + 1; }
+
+        do shape.clear();
+        let i = 0;
+        while (i < count) {
+            let k = 0;                     // franja 0 = la base del pincho
+            while (k < 4) {
+                if (up) { let row = surfaceRow - ((k + 1) * step); }
+                else    { let row = (surfaceRow + 1) + (k * step); }
+                do shape.add((i * 16) + (k * 2), ((i * 16) + 15) - (k * 2), row, (row + step) - 1);
+                let k = k + 1;
+            }
+            let i = i + 1;
+        }
+        let active = true;
+        return;
+    }
+
+    method void draw(Renderer r) {
+        do shape.draw(r, x);
+        return;
+    }
+
+    /**
+     * Desplaza el grupo dx columnas (negativo = izquierda). Al salir por
+     * completo de la pantalla en el sentido del movimiento se desactiva.
+     */
+    method void move(int dx, Renderer r) {
+        do shape.move(r, x, dx);
+        let x = x + dx;
+        if ((dx < 0) & ((x + width) < 0)) { let active = false; }
+        if ((dx > 0) & (x > 511)) { let active = false; }
+        return;
+    }
+
+    /**
+     * Colision con un cuadrado (px, py, lado s). La caja del pincho se
+     * reduce 3 px por lado: rozar la punta no cuenta, como en los juegos
+     * de este genero, y se siente justo para el jugador.
+     */
+    method boolean hits(int px, int py, int s) {
+        if (~active) { return false; }
+        if ((px < (x + width - 3)) & ((px + s) > (x + 3)) &
+            (py < (top + height - 3)) & ((py + s) > (top + 3))) {
+            return true;
+        }
+        return false;
+    }
+
+    /** Lo saca de juego (por ejemplo al cruzar un portal). */
+    method void deactivate() {
+        let active = false;
+        return;
+    }
+
+    method void dispose() {
+        do shape.dispose();
+        do Memory.deAlloc(this);
+        return;
+    }
+}
