@@ -75,43 +75,36 @@ class Renderer {
     //  aqui para recortarse al area visible antes de llamar al OS.
     // ------------------------------------------------------------------
 
-    /** Limita un valor X al rango horizontal valido [0, 511]. */
-    method int clampX(int v) {
-        if (v < 0)   { return 0; }
-        if (v > 511) { return 511; }
-        return v;
-    }
-
-    /** Limita un valor Y al rango vertical valido [0, 255]. */
-    method int clampY(int v) {
-        if (v < 0)   { return 0; }
-        if (v > 255) { return 255; }
-        return v;
-    }
-
     /**
      * Dibuja un rectangulo (relleno) ya recortado a la pantalla.
      * Si el rectangulo queda COMPLETAMENTE fuera, no dibuja nada.
+     * Se llama cientos de veces por tick, asi que el recorte va en linea
+     * (sin llamar a funciones auxiliares): cada llamada en la VM cuesta
+     * decenas de instrucciones. Como x1 <= x2 e y1 <= y2, tras descartar
+     * lo que queda fuera solo hay que recortar x1, x2, y1 e y2 por un lado.
      */
     method void safeRect(int x1, int y1, int x2, int y2) {
-        // Descartar si esta por completo fuera del area visible.
         if ((x2 < 0) | (x1 > 511) | (y2 < 0) | (y1 > 255)) {
             return;
         }
-        do Screen.drawRectangle(clampX(x1), clampY(y1), clampX(x2), clampY(y2));
+        if (x1 < 0)   { let x1 = 0; }
+        if (x2 > 511) { let x2 = 511; }
+        if (y1 < 0)   { let y1 = 0; }
+        if (y2 > 255) { let y2 = 255; }
+        do Screen.drawRectangle(x1, y1, x2, y2);
         return;
     }
 
     /** Dibuja un rectangulo relleno usando el color de la TINTA. */
     method void fillRect(int x1, int y1, int x2, int y2) {
-        do Screen.setColor(inkColor());
+        do Screen.setColor(~inverted);
         do safeRect(x1, y1, x2, y2);
         return;
     }
 
     /** Borra (pinta con el FONDO) un rectangulo. Util para limpiar sprites. */
     method void eraseRect(int x1, int y1, int x2, int y2) {
-        do Screen.setColor(bgColor());
+        do Screen.setColor(inverted);
         do safeRect(x1, y1, x2, y2);
         return;
     }
@@ -126,9 +119,13 @@ class Renderer {
     //  delgados de 'speed' pixeles de ancho, y el resto queda intacto.
     // ------------------------------------------------------------------
 
-    /** Pinta un rectangulo con tinta (ink = true) o con fondo (false). */
+    /**
+     * Pinta un rectangulo con tinta (ink = true) o con fondo (false).
+     * Color real = ink XOR inverted, que en Jack se escribe ~(ink = inverted).
+     */
     method void paintRect(int x1, int y1, int x2, int y2, boolean ink) {
-        if (ink) { do fillRect(x1, y1, x2, y2); } else { do eraseRect(x1, y1, x2, y2); }
+        do Screen.setColor(~(ink = inverted));
+        do safeRect(x1, y1, x2, y2);
         return;
     }
 

@@ -41,9 +41,9 @@ class Portal {
         do shape.add(3, 5, bottomRow - 5, bottomRow - 3);
         do shape.add(0, 3, topRow + 6, bottomRow - 6);      // aro izquierdo
         let y = topRow + 12;                                // energia interior
-        while ((y + 8) < (bottomRow - 10)) {
+        while ((y + 8) < (bottomRow - 10)) {   // un segmento cada 24 px
             do shape.add(10, 13, y, y + 7);
-            let y = y + 16;
+            let y = y + 24;
         }
         do shape.add(20, 23, topRow + 6, bottomRow - 6);    // aro derecho
         do shape.add(18, 20, topRow + 3, topRow + 5);       // esquinas derechas
@@ -62,6 +62,12 @@ class Portal {
     method void spawn(int startX) {
         let x = startX;
         let active = true;
+        return;
+    }
+
+    /** Pinta el aro completo (lo usa la portada, donde no se mueve). */
+    method void draw(Renderer r) {
+        do shape.draw(r, x);
         return;
     }
 
