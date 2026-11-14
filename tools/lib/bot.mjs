@@ -30,7 +30,7 @@ function nearestInk(vm, lane, inv) {
   return null;
 }
 
-function gameOverVisible(vm) {
+export function gameOverVisible(vm) {
   // The game-over box has a 4 px frame at columns 136..139 and 372..375.
   const inv = inverted(vm);
   return pixel(vm, 137, 120) !== inv && pixel(vm, 374, 120) !== inv && pixel(vm, 145, 120) === inv;
