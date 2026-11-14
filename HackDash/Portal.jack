@@ -1,0 +1,82 @@
+// ============================================================================
+//  GeometryHash  -  Juego "Hack Dash"
+//  Organizacion de Computadores - 2026
+//
+//  Archivo : Portal.jack
+//  Clase   : Portal
+//  Rol     : Aro de transicion que ocupa toda la altura de la zona de juego.
+//            Cuando su centro cruza el centro del cubo, Game suma un punto,
+//            invierte los colores y cambia de fase (suelo <-> techo).
+//
+//  Dibujo: un aro de 24 px de ancho hecho con Strips (aros laterales,
+//  tapas redondeadas y una linea discontinua de "energia" en el centro).
+//  Se mueve con el mismo dibujo incremental que los pinchos.
+//
+//            ######
+//         ###      ###
+//        ##    ##    ##
+//        ##          ##
+//        ##    ##    ##
+//         ###      ###
+//            ######
+// ============================================================================
+
+class Portal {
+
+    field Strips shape;
+    field int x;             // borde izquierdo
+    field int width;         // 24 px
+    field boolean active;    // true mientras esta en pantalla
+
+    /** Construye el aro entre las filas topRow y bottomRow (inclusive). */
+    constructor Portal new(int topRow, int bottomRow) {
+        var int y;
+        let width = 24;
+        let shape = Strips.new(24);
+        do shape.add(0, 3, topRow + 6, bottomRow - 6);      // aro izquierdo
+        do shape.add(20, 23, topRow + 6, bottomRow - 6);    // aro derecho
+        do shape.add(6, 17, topRow, topRow + 2);            // tapa superior
+        do shape.add(3, 5, topRow + 3, topRow + 5);
+        do shape.add(18, 20, topRow + 3, topRow + 5);
+        do shape.add(6, 17, bottomRow - 2, bottomRow);      // tapa inferior
+        do shape.add(3, 5, bottomRow - 5, bottomRow - 3);
+        do shape.add(18, 20, bottomRow - 5, bottomRow - 3);
+        let y = topRow + 12;                                // energia interior
+        while ((y + 8) < (bottomRow - 10)) {
+            do shape.add(10, 13, y, y + 7);
+            let y = y + 16;
+        }
+        let active = false;
+        return this;
+    }
+
+    method boolean isActive() { return active; }
+    method int getWidth()     { return width; }
+
+    /** Columna central del aro: es la que decide el cruce. */
+    method int centerX() { return x + 12; }
+
+    /** Coloca el portal en startX (normalmente fuera de pantalla). */
+    method void spawn(int startX) {
+        let x = startX;
+        let active = true;
+        return;
+    }
+
+    method void move(int dx, Renderer r) {
+        do shape.move(r, x, dx);
+        let x = x + dx;
+        return;
+    }
+
+    method void deactivate() {
+        let active = false;
+        return;
+    }
+
+    method void dispose() {
+        do shape.dispose();
+        do Memory.deAlloc(this);
+        return;
+    }
+}
