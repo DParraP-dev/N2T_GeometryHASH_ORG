@@ -18,7 +18,7 @@
 class Hud {
 
     field Renderer renderer;
-    field String sPoints, sSpeed, sStage, sFloor, sRoof, sJump, sGameOver;
+    field String sPoints, sSpeed, sStage, sFloor, sRoof, sJump, sGameOver, sRetry;
 
     constructor Hud new(Renderer r) {
         let renderer = r;
@@ -29,6 +29,7 @@ class Hud {
         let sRoof = "TECHO INVERTIDO";
         let sJump = "ESPACIO: SALTAR";
         let sGameOver = "GAME OVER";
+        let sRetry = "ESPACIO: REINTENTAR";
         return this;
     }
 
@@ -79,8 +80,9 @@ class Hud {
         do renderer.fillRect(136, 78, 375, 177);       // marco
         do renderer.eraseRect(140, 82, 371, 173);      // interior
         do Font.drawText(renderer, sGameOver, 186, 94, 4);
-        let x = Font.drawText(renderer, sPoints, 220, 136, 2);
-        do Font.drawNumber(renderer, score, x + 8, 136, 2);
+        let x = Font.drawText(renderer, sPoints, 220, 128, 2);
+        do Font.drawNumber(renderer, score, x + 8, 128, 2);
+        do Font.drawText(renderer, sRetry, 181, 152, 2);
         return;
     }
 
@@ -92,6 +94,7 @@ class Hud {
         do sRoof.dispose();
         do sJump.dispose();
         do sGameOver.dispose();
+        do sRetry.dispose();
         do Memory.deAlloc(this);
         return;
     }

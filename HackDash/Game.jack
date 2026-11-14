@@ -49,13 +49,15 @@ class Game {
     field int tickDelay;          // ms de espera por tick (controla fluidez)
     field boolean running;        // true mientras la partida sigue viva
 
-    /** Construye el juego y todos sus componentes en estado inicial. */
+    /**
+     * Construye el juego. TODOS los objetos se crean aqui, una sola vez;
+     * cada partida nueva los reutiliza con reset(). Durante el juego no se
+     * reserva ni se libera memoria.
+     */
     constructor Game new(int seed) {
         var int i;
         let floorY = 232;
         let ceilY = 21;
-        let roof = false;
-        let dir = -1;                            // Fase 1: el mundo viene desde la derecha
         let renderer = Renderer.new();
         let hud = Hud.new(renderer);
         let scenery = Scenery.new(233);       // muescas dentro del suelo
@@ -68,25 +70,45 @@ class Game {
             let pool[i] = Spikes.new();
             let i = i + 1;
         }
-        let gap = 120;
         let portal = Portal.new(ceilY + 5, floorY - 5);   // ocupa toda la zona de juego
-        let stage = 1;
-        let spawned = 0;
         let perStage = 5;
-        let bannerTimer = 0;
-        let score = 0;
-        let speed = 4;
         let tickDelay = 30;                      // ~33 fps aprox.
-        let running = true;
+        do reset(seed);
         return this;
     }
 
+    /** Deja todo listo para una partida nueva (Fase 1, velocidad inicial). */
+    method void reset(int seed) {
+        var int i;
+        var Spikes s;
+        do rng.reseed(seed);
+        do renderer.setInverted(false);
+        let roof = false;
+        let dir = -1;                            // Fase 1: el mundo viene desde la derecha
+        do player.reset(64);
+        let i = 0;
+        while (i < poolSize) {
+            let s = pool[i];
+            do s.deactivate();
+            let i = i + 1;
+        }
+        do portal.deactivate();
+        let gap = 0;
+        let stage = 1;
+        let spawned = 0;
+        let bannerTimer = 0;
+        let score = 0;
+        let speed = 4;
+        let running = true;
+        return;
+    }
+
     /**
-     * Bucle principal del juego.
+     * Bucle principal de UNA partida (termina al chocar).
      * En cada iteracion: lee input, actualiza estado, redibuja y espera.
      * El uso de Keyboard.keyPressed() garantiza captura NO bloqueante.
      */
-    method void run() {
+    method void play() {
         do drawStaticScene();
 
         while (running) {
@@ -101,13 +123,9 @@ class Game {
         return;
     }
 
-    /** Lectura NO bloqueante del teclado. Espacio (32) o flecha arriba (131). */
+    /** Lectura NO bloqueante del teclado (ver Input). */
     method void handleInput() {
-        var char key;
-        let key = Keyboard.keyPressed();
-        if ((key = 32) | (key = 131)) {   // barra espaciadora o flecha arriba
-            do player.jump();
-        }
+        if (Input.isJump()) { do player.jump(); }
         return;
     }
 
