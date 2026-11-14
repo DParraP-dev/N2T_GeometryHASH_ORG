@@ -48,7 +48,7 @@ class Game {
         let renderer = Renderer.new();
         let hud = Hud.new(renderer);
         let rng = Random.new(seed);
-        let player = Player.new(60, groundY, 16); // cubo fijo a la izquierda
+        let player = Player.new(60, groundY, 21, 16); // cubo fijo a la izquierda
         let poolSize = 3;                        // nunca hay mas de 3 en pantalla
         let pool = Array.new(poolSize);
         let i = 0;

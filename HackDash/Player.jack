@@ -16,8 +16,16 @@
 //    donde y crece hacia abajo). La gravedad lo frena y lo devuelve al
 //    suelo, generando un arco parabolico -> rebote calculado matematicamente.
 //
-//  Coordenadas: la X del cubo es FIJA en Fase 1 (el mundo se mueve, no el
-//  cubo), lo que refuerza la sensacion de "fondo movil". Solo varia Y.
+//  Gravedad con sentido (dir):
+//    dir = +1 : fases de SUELO. La gravedad tira hacia abajo y el cubo se
+//               apoya sobre el suelo.
+//    dir = -1 : fases de TECHO. La gravedad tira hacia arriba, el cubo
+//               cuelga del techo y "salta" hacia abajo.
+//  Las mismas dos ecuaciones sirven para ambos casos multiplicando la
+//  gravedad y el impulso por dir:  vy <- vy + g*dir ;  salto: vy = -imp*dir
+//
+//  Coordenadas: la X del cubo es FIJA (el mundo se mueve, no el cubo), lo
+//  que refuerza la sensacion de "fondo movil". Solo varia Y.
 // ============================================================================
 
 class Player {
@@ -26,26 +34,44 @@ class Player {
     field int size;          // Lado del cubo (cuadrado) en px
     field int vy;            // Velocidad vertical actual (px/tick)
     field int gravity;       // Aceleracion de la gravedad (px/tick^2)
-    field int jumpImpulse;   // Impulso inicial del salto (negativo = arriba)
-    field int groundY;       // Coordenada Y del suelo (tope inferior util)
-    field boolean onGround;  // true si el cubo esta apoyado en el suelo
+    field int jumpImpulse;   // Rapidez inicial del salto (px/tick)
+    field int floorY;        // Primera fila del suelo (el cubo apoya encima)
+    field int ceilY;         // Ultima fila del techo (el cubo cuelga debajo)
+    field int dir;           // +1 gravedad hacia abajo, -1 hacia arriba
+    field boolean onGround;  // true si el cubo esta apoyado en su superficie
 
     /**
-     * Crea el cubo.
-     *  startX  : posicion horizontal fija del cubo.
-     *  gY      : Y de la superficie (suelo en Fase 1).
-     *  s       : lado del cubo.
+     * Crea el cubo apoyado en el suelo.
+     *  startX : posicion horizontal fija del cubo.
+     *  floor  : primera fila del suelo.
+     *  ceil   : ultima fila del techo.
+     *  s      : lado del cubo.
      */
-    constructor Player new(int startX, int gY, int s) {
+    constructor Player new(int startX, int floor, int ceil, int s) {
         let x = startX;
         let size = s;
-        let groundY = gY;
-        let y = gY - s;        // apoyado justo encima del suelo
+        let floorY = floor;
+        let ceilY = ceil;
+        let dir = 1;
+        let y = floorY - size;  // apoyado justo encima del suelo
         let vy = 0;
-        let gravity = 1;       // valores pequenos: la pantalla es de 256px
-        let jumpImpulse = -11; // fuerza del salto (ajustable en playtesting)
+        let gravity = 1;        // valores pequenos: la pantalla es de 256px
+        let jumpImpulse = 11;   // altura maxima = 11+10+...+1 = 66 px
         let onGround = true;
         return this;
+    }
+
+    /**
+     * Cambio de plano al cruzar un portal: invierte la gravedad, coloca el
+     * cubo en su nueva superficie y en la nueva columna newX.
+     */
+    method void flip(int newX) {
+        let dir = -dir;
+        let x = newX;
+        let vy = 0;
+        let onGround = true;
+        if (dir = 1) { let y = floorY - size; } else { let y = ceilY + 1; }
+        return;
     }
 
     method int getX()    { return x; }
@@ -55,7 +81,7 @@ class Player {
     /** Inicia un salto solo si el cubo esta en el suelo (evita doble salto). */
     method void jump() {
         if (onGround) {
-            let vy = jumpImpulse;
+            let vy = -(jumpImpulse * dir);   // contra la gravedad
             let onGround = false;
         }
         return;
@@ -66,21 +92,20 @@ class Player {
      * Integra gravedad y velocidad, y resuelve la colision con el suelo.
      */
     method void update() {
-        let vy = vy + gravity;   // la gravedad siempre tira hacia el suelo
-        let y = y + vy;          // actualiza posicion vertical
+        let vy = vy + (gravity * dir);  // la gravedad tira hacia su superficie
+        let y = y + vy;                 // actualiza posicion vertical
 
-        // Tope superior: el cubo no puede salirse por el techo de la
-        // pantalla (y < 0). Si lo alcanza, se detiene ahi y empieza a caer.
-        if (y < 0) {
-            let y = 0;
+        // Topes: el cubo nunca atraviesa el suelo ni el techo. El tope en el
+        // sentido de la gravedad es su superficie de apoyo (aterriza).
+        if ((y + size) > floorY) {
+            let y = floorY - size;
             let vy = 0;
+            let onGround = (dir = 1);
         }
-
-        // Colision con el suelo: no dejar que atraviese la superficie.
-        if ((y + size) > groundY) {
-            let y = groundY - size;
+        if (y < (ceilY + 1)) {
+            let y = ceilY + 1;
             let vy = 0;
-            let onGround = true;
+            let onGround = (dir = -1);
         }
         return;
     }
