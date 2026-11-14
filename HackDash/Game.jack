@@ -30,6 +30,10 @@ class Game {
     field int poolSize;
     field Random rng;             // varia pinchos y distancias
     field int gap;                // px de mundo que faltan para el siguiente grupo
+    field Portal portal;          // aro de transicion entre etapas
+    field int stage;              // etapa actual (1, 2, 3...)
+    field int spawned;            // grupos de pinchos generados en esta etapa
+    field int perStage;           // grupos antes de que aparezca el portal
 
     field int groundY;            // Y de la superficie del suelo
     field int score;              // puntaje acumulado
@@ -53,6 +57,10 @@ class Game {
             let i = i + 1;
         }
         let gap = 120;
+        let portal = Portal.new(26, groundY - 6);   // ocupa toda la zona de juego
+        let stage = 1;
+        let spawned = 0;
+        let perStage = 5;
         let score = 0;
         let speed = 4;
         let tickDelay = 30;                      // ~33 fps aprox.
@@ -97,22 +105,26 @@ class Game {
         do player.erase(renderer);
         do player.update();                     // integra gravedad/salto
 
-        // Mover los pinchos activos. Al salir por la izquierda se desactivan:
-        // el grupo se esquivo con exito y suma un punto.
+        // Mover los pinchos activos (se desactivan solos al salir).
         let i = 0;
         while (i < poolSize) {
             let s = pool[i];
-            if (s.isActive()) {
-                do s.move(-speed, renderer);
-                if (~s.isActive()) {
-                    let score = score + 1;
-                    do hud.drawScore(score);    // solo cuando cambia
-                }
-            }
+            if (s.isActive()) { do s.move(-speed, renderer); }
             let i = i + 1;
         }
+        if (portal.isActive()) { do portal.move(-speed, renderer); }
+
+        // Tras 'perStage' grupos aparece el portal; mientras esta en
+        // pantalla no se generan pinchos.
         let gap = gap - speed;
-        if (gap < 1) { do spawnSpikes(); }
+        if ((gap < 1) & ~portal.isActive()) {
+            if (spawned < perStage) {
+                do spawnSpikes();
+            } else {
+                do portal.spawn(512);
+            }
+        }
+        do checkPortal();
 
         if (collides()) {
             let running = false;   // colision -> fin de la partida
@@ -135,6 +147,7 @@ class Game {
                 let count = 1 + rng.below(3);                 // 1 a 3 pinchos
                 let tall = (count < 3) & (rng.below(4) = 0);  // 1 de cada 4 es alto
                 do s.spawn(512, count, tall, groundY, true);
+                let spawned = spawned + 1;
                 // Separacion minima = ancho del grupo + un salto completo
                 // (~24 ticks en el aire) + margen, mas un extra aleatorio.
                 let gap = (s.getWidth() + (speed * 24)) + (16 + rng.below(120));
@@ -143,6 +156,40 @@ class Game {
             let i = i + 1;
         }
         let gap = 16;   // pool lleno: reintentar pronto
+        return;
+    }
+
+    /** Detecta si el centro del portal ya paso el centro del cubo. */
+    method void checkPortal() {
+        if (portal.isActive()) {
+            if (portal.centerX() < (player.getX() + (player.getSize() / 2))) {
+                do enterPortal();
+            }
+        }
+        return;
+    }
+
+    /**
+     * Cruce del portal: +1 punto, INVERSION DE COLORES y etapa nueva.
+     * Toda la escena se repinta con la paleta invertida: como cada clase
+     * pide "tinta" o "fondo" al Renderer, basta con un toggleInvert().
+     */
+    method void enterPortal() {
+        var int i;
+        var Spikes s;
+        let score = score + 1;
+        let stage = stage + 1;
+        do renderer.toggleInvert();
+        do portal.deactivate();
+        let i = 0;
+        while (i < poolSize) {        // los pinchos ya superados desaparecen
+            let s = pool[i];
+            do s.deactivate();
+            let i = i + 1;
+        }
+        let spawned = 0;
+        let gap = 160;                // respiro antes del primer grupo nuevo
+        do drawStaticScene();
         return;
     }
 
@@ -201,6 +248,7 @@ class Game {
             let i = i + 1;
         }
         do pool.dispose();
+        do portal.dispose();
         do rng.dispose();
         do player.dispose();
         do hud.dispose();
