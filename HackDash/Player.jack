@@ -85,15 +85,19 @@ class Player {
         return;
     }
 
-    /** Dibuja el cubo con el color de tinta actual. */
+    /**
+     * Dibuja el cubo con el color de tinta actual. drawRectangle incluye
+     * ambos extremos, por eso el lado va de x a x + size - 1: asi el cubo
+     * mide exactamente 'size' px y nunca pisa la fila del suelo.
+     */
     method void draw(Renderer r) {
-        do r.fillRect(x, y, x + size, y + size);
+        do r.fillRect(x, y, (x + size) - 1, (y + size) - 1);
         return;
     }
 
     /** Borra el cubo (pinta con el fondo) para redibujarlo en el tick. */
     method void erase(Renderer r) {
-        do r.eraseRect(x, y, x + size, y + size);
+        do r.eraseRect(x, y, (x + size) - 1, (y + size) - 1);
         return;
     }
 

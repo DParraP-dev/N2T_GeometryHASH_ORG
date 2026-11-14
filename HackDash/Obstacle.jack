@@ -73,12 +73,12 @@ class Obstacle {
     }
 
     method void draw(Renderer r) {
-        do r.fillRect(x, y, x + width, y + height);
+        do r.fillRect(x, y, (x + width) - 1, (y + height) - 1);
         return;
     }
 
     method void erase(Renderer r) {
-        do r.eraseRect(x, y, x + width, y + height);
+        do r.eraseRect(x, y, (x + width) - 1, (y + height) - 1);
         return;
     }
 
