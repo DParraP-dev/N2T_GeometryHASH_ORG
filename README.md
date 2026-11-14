@@ -9,7 +9,6 @@
 <p align="center">
   <img alt="Jack" src="https://img.shields.io/badge/Jack-Nand2Tetris-1F6FEB?style=flat" />
   <img alt="Hack 16 bits" src="https://img.shields.io/badge/Hack-16_bits-555555?style=flat" />
-  <img alt="Node.js 22+" src="https://img.shields.io/badge/Node.js_22+-pruebas-5FA04E?style=flat&logo=nodedotjs&logoColor=white" />
   <img alt="License MIT" src="https://img.shields.io/badge/license-MIT-c8542a?style=flat" />
   <img alt="status WIP" src="https://img.shields.io/badge/status-WIP-e0a642?style=flat" />
 </p>
