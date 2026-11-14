@@ -1,7 +1,7 @@
 // Turns the Hack screen (RAM 16384..24575) into a grayscale PNG.
 
 import { deflateSync } from "node:zlib";
-import { SCREEN } from "./n2t.mjs";
+import { screenPixel } from "./n2t.mjs";
 
 const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
   let c = n;
@@ -33,8 +33,7 @@ export function screenToPng(ram, scale = 2) {
     const sy = Math.floor(y / scale);
     for (let x = 0; x < w; x++) {
       const sx = Math.floor(x / scale);
-      const word = ram.get(SCREEN + sy * 32 + (sx >> 4)) & 0xffff;
-      raw[y * (w + 1) + 1 + x] = (word >> (sx & 15)) & 1 ? 0x14 : 0xee;
+      raw[y * (w + 1) + 1 + x] = screenPixel(ram, sx, sy) ? 0x14 : 0xee;
     }
   }
   const ihdr = Buffer.alloc(13);

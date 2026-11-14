@@ -81,8 +81,16 @@ export function freeHeapWords(vm) {
   return total;
 }
 
-/** True if the screen pixel (x, y) is black. */
-export function pixel(vm, x, y) {
-  const word = vm.RAM.get(SCREEN + y * 32 + (x >> 4)) & 0xffff;
+/**
+ * True if screen pixel (x, y) is black. Hack maps the screen as 32 words
+ * per row; bit 0 of each word is the leftmost of its 16 pixels.
+ */
+export function screenPixel(ram, x, y) {
+  const word = ram.get(SCREEN + y * 32 + (x >> 4)) & 0xffff;
   return ((word >> (x & 15)) & 1) === 1;
+}
+
+/** Same as screenPixel, reading from a running VM. */
+export function pixel(vm, x, y) {
+  return screenPixel(vm.RAM, x, y);
 }
