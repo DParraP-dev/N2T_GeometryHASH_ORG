@@ -1,0 +1,9 @@
+# Salida de compilacion (se genera con tools/build.mjs o JackCompiler)
+build/
+*.vm
+
+# Capturas y salidas de pruebas
+out/
+
+node_modules/
+.DS_Store
