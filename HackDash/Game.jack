@@ -24,6 +24,7 @@
 class Game {
 
     field Renderer renderer;      // capa de dibujo + color actual
+    field Hud hud;                // marcador y mensajes en pantalla
     field Player player;          // el cubo del jugador
     field Obstacle obstacle;      // obstaculo activo (Fase 1: uno a la vez)
 
@@ -37,6 +38,7 @@ class Game {
     constructor Game new() {
         let groundY = 220;                       // suelo cerca del borde inferior
         let renderer = Renderer.new();
+        let hud = Hud.new(renderer);
         let player = Player.new(60, groundY, 14); // cubo fijo a la izquierda
         let obstacle = Obstacle.new(511, groundY, 12, 24);
         let score = 0;
@@ -88,6 +90,7 @@ class Game {
         if (recycled) {
             // El obstaculo se esquivo con exito: punto y reaparicion.
             let score = score + 1;
+            do hud.drawScore(score);              // solo cuando cambia
             do obstacle.resetTo(511);
         }
 
@@ -125,32 +128,25 @@ class Game {
         do renderer.clearBackground();
         // Suelo: franja fina a lo ancho de la pantalla.
         do renderer.fillRect(0, groundY, 511, groundY + 3);
+        do hud.drawAll(score);
         return;
     }
 
-    /** Redibuja los elementos moviles y el marcador. */
+    /**
+     * Redibuja los elementos moviles. El marcador no se toca aqui: antes se
+     * imprimia "Puntaje: " en cada tick y cada literal reservaba un String
+     * nuevo que nunca se liberaba. El heap se agotaba (ERR6) a los ~570
+     * ticks de juego. Ahora Hud lo dibuja solo cuando el puntaje cambia.
+     */
     method void render() {
         do player.draw(renderer);
         do obstacle.draw(renderer);
-        do drawScore();
-        return;
-    }
-
-    /** Marcador visible y actualizado dinamicamente (requisito de rubrica). */
-    method void drawScore() {
-        do Output.moveCursor(0, 0);
-        do Output.printString("Puntaje: ");
-        do Output.printInt(score);
         return;
     }
 
     /** Pantalla de fin de partida con el puntaje final. */
     method void showGameOver() {
-        do Output.moveCursor(10, 25);
-        do Output.printString("GAME OVER");
-        do Output.moveCursor(12, 22);
-        do Output.printString("Puntaje final: ");
-        do Output.printInt(score);
+        do hud.drawGameOver(score);
         return;
     }
 
@@ -158,6 +154,7 @@ class Game {
     method void dispose() {
         do player.dispose();
         do obstacle.dispose();
+        do hud.dispose();
         do renderer.dispose();
         do Memory.deAlloc(this);
         return;

@@ -16,6 +16,7 @@ class Main {
     /** Punto de entrada estandar exigido por el OS de Jack. */
     function void main() {
         var Game game;
+        do Font.init();          // tabla de letras (una vez por programa)
         let game = Game.new();   // Construye el orquestador del juego
         do game.run();           // Cede el control al bucle principal
         do game.dispose();       // Libera memoria al terminar la partida

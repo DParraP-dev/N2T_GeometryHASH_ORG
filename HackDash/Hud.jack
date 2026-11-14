@@ -1,0 +1,54 @@
+// ============================================================================
+//  GeometryHash  -  Juego "Hack Dash"
+//  Organizacion de Computadores - 2026
+//
+//  Archivo : Hud.jack
+//  Clase   : Hud
+//  Rol     : Interfaz en pantalla (marcador y mensajes). Sabe DONDE va cada
+//            texto; el COMO se dibuja lo resuelve Font.
+//
+//  Regla de rendimiento: el marcador NO se redibuja en cada tick. Game llama
+//  a drawScore() solo cuando el puntaje cambia, y los rotulos fijos se
+//  pintan una vez por escena. Asi el bucle principal no gasta ciclos ni
+//  memoria en texto que no cambio.
+// ============================================================================
+
+class Hud {
+
+    field Renderer renderer;
+
+    constructor Hud new(Renderer r) {
+        let renderer = r;
+        return this;
+    }
+
+    /** Dibuja los rotulos fijos y los valores actuales (tras limpiar). */
+    method void drawAll(int score) {
+        do Font.drawLabel(renderer, "PUNTOS", 8, 4, 2);
+        do drawScore(score);
+        return;
+    }
+
+    /** Borra la caja del numero y escribe el puntaje nuevo. */
+    method void drawScore(int score) {
+        do renderer.eraseRect(62, 4, 109, 13);
+        do Font.drawNumber(renderer, score, 62, 4, 2);
+        return;
+    }
+
+    /** Cartel de fin de partida en el centro de la pantalla. */
+    method void drawGameOver(int score) {
+        var int x;
+        do renderer.fillRect(136, 78, 375, 177);       // marco
+        do renderer.eraseRect(140, 82, 371, 173);      // interior
+        do Font.drawLabel(renderer, "GAME OVER", 186, 94, 4);
+        let x = Font.drawLabel(renderer, "PUNTOS ", 220, 136, 2);
+        do Font.drawNumber(renderer, score, x, 136, 2);
+        return;
+    }
+
+    method void dispose() {
+        do Memory.deAlloc(this);
+        return;
+    }
+}
