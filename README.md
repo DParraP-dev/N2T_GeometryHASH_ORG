@@ -19,7 +19,7 @@ solo decide cuándo saltar. Cada portal suma un punto, invierte todos los
 colores de la pantalla, lleva la acción del suelo al techo y acelera el
 mundo. Es el proyecto final de Organización de Computadores 2026.
 
-> **Video de demostración (YouTube):** _pendiente. Se agrega aquí antes de la sustentación._
+> **Video de demostración (YouTube):** (https://youtu.be/0AmxvXpkcjk). Se agrega aquí antes de la sustentación._
 
 ## Integrantes
 
