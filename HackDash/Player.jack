@@ -40,6 +40,9 @@ class Player {
     field int ceilY;         // Ultima fila del techo (el cubo cuelga debajo)
     field int dir;           // +1 gravedad hacia abajo, -1 hacia arriba
     field boolean onGround;  // true si el cubo esta apoyado en su superficie
+    field boolean flying;    // true en las fases de nave (modo vuelo tipo Geometry Dash)
+    field int thrust;        // empuje por tick mientras se mantiene la tecla (px/tick^2)
+    field int maxVy;         // tope de |vy| en modo nave (evita tunneling vertical)
 
     /**
      * Crea el cubo apoyado en el suelo.
@@ -60,6 +63,9 @@ class Player {
         let gravity = 1;        // valores pequenos: la pantalla es de 256px
         let jumpImpulse = 11;   // altura maxima = 11+10+...+1 = 66 px
         let onGround = true;
+        let flying = false;     // por defecto modo salto
+        let thrust = 2;         // empuje suave: aceleracion gradual, no instantanea
+        let maxVy = 8;          // velocidad vertical maxima controlable
         return this;
     }
 
@@ -101,17 +107,45 @@ class Player {
         return;
     }
 
+    /** Activa o desactiva el modo nave. Lo controla Game segun la etapa. */
+    method void setFlying(boolean value) {
+        let flying = value;
+        let vy = 0;
+        return;
+    }
+
+    method boolean isFlying() { return flying; }
+
     /**
      * Avanza un paso la simulacion fisica.
-     * Integra gravedad y velocidad, y resuelve la colision con el suelo.
+     *  jumpHeld : estado de la tecla de salto EN ESTE tick (lo pasa Game).
+     *
+     * Modo salto (flying = false): jumpHeld no se usa aqui (el salto es un
+     * evento puntual via jump()); solo se integra gravedad y se aterriza.
+     *
+     * Modo nave (flying = true): mientras la tecla esta pulsada se aplica un
+     * empuje continuo contra la gravedad (asciende); al soltar, la gravedad
+     * lo hace descender. vy se acota a [-maxVy, maxVy] para que el cubo no
+     * cruce la pantalla en un solo tick (tunneling vertical). Tocar el borde
+     * frena el cubo (vy = 0) en vez de matarlo: la fase de nave se esquiva
+     * con los obstaculos, no con los bordes.
      */
-    method void update() {
+    method void update(boolean jumpHeld) {
         let prevY = y;
-        let vy = vy + (gravity * dir);  // la gravedad tira hacia su superficie
-        let y = y + vy;                 // actualiza posicion vertical
 
-        // Topes: el cubo nunca atraviesa el suelo ni el techo. El tope en el
-        // sentido de la gravedad es su superficie de apoyo (aterriza).
+        if (flying) {
+            if (jumpHeld) { let vy = vy - (thrust * dir); }  // propulsion contra la gravedad
+            let vy = vy + (gravity * dir);                   // gravedad, igual que el salto
+            // Clamp de vy al rango [-maxVy, maxVy].
+            if (vy > maxVy)    { let vy = maxVy; }
+            if (vy < (-maxVy)) { let vy = -maxVy; }
+        } else {
+            let vy = vy + (gravity * dir);  // la gravedad tira hacia su superficie
+        }
+
+        let y = y + vy;                     // actualiza posicion vertical
+
+        // Topes: el cubo nunca atraviesa el suelo ni el techo.
         if ((y + size) > floorY) {
             let y = floorY - size;
             let vy = 0;

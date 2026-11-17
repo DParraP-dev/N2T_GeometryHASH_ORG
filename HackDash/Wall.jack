@@ -1,0 +1,114 @@
+// ============================================================================
+//  GeometryHash  -  Juego "Hack Dash"
+//  Organizacion de Computadores - 2026
+//
+//  Archivo : Wall.jack
+//  Clase   : Wall
+//  Rol     : Obstaculo de las FASES DE NAVE. Una barra vertical que ocupa
+//            casi toda la zona de juego, con un HUECO por donde el cubo
+//            debe pasar volando (estilo Geometry Dash / Flappy Bird).
+//
+//  La pared son DOS franjas verticales (Strips): superior (del techo al
+//  borde de arriba del hueco) e inferior (del borde de abajo al suelo).
+//  El hueco mide 45 px y su posicion la sortea Game y la pasa ya acotada a
+//  la zona jugable. La colision comprueba DOS cajas: tocar cualquiera mata;
+//  el hueco es seguro. Se mueve con el dibujo incremental de Strips.
+// ============================================================================
+
+class Wall {
+
+    field Strips shape;      // las dos franjas verticales que forman el muro
+    field int x;             // columna del borde izquierdo (puede ser negativa)
+    field int width;         // ancho de la pared en px
+    field int topY;          // primera fila de la zona de juego (tope del muro)
+    field int botY;          // ultima fila de la zona de juego (base del muro)
+    field int gapTop;        // primera fila del hueco (su borde superior)
+    field int gapHeight;     // alto del hueco en px
+    field boolean active;    // true mientras la pared esta en pantalla
+
+    /**
+     * Construye la pared.
+     *  playTop : primera fila de la zona de juego (arriba).
+     *  playBot : ultima fila de la zona de juego (abajo).
+     * El hueco mide 45 px; su posicion se fija en cada spawn().
+     */
+    constructor Wall new(int playTop, int playBot) {
+        let shape = Strips.new(2);   // reserva 2 franjas: arriba y abajo del hueco
+        let width = 12;              // ancho fijo del muro en px
+        let topY = playTop;          // guarda el tope de la zona de juego
+        let botY = playBot;          // guarda la base de la zona de juego
+        let gapHeight = 45;          // alto del hueco (constante de diseno)
+        let active = false;          // nace inactiva: Game la activa con spawn()
+        return this;                 // devuelve el objeto recien creado
+    }
+
+    method boolean isActive() { return active; }     // consulta si esta en juego
+    method int getWidth()     { return width; }      // ancho para calcular spawns
+    method int getGapHeight() { return gapHeight; }  // alto del hueco (lo usa Game)
+
+    /**
+     * Prepara una pared nueva.
+     *  startX     : columna inicial (normalmente fuera de pantalla).
+     *  gapTopRow  : fila donde empieza el hueco. Game ya la sorteo y la
+     *               acoto a [topY+16, botY-16-gapHeight] (margen de 16 px),
+     *               asi que aqui se usa tal cual: siempre es jugable.
+     */
+    method void spawn(int startX, int gapTopRow) {
+        let x = startX;                      // coloca el borde izquierdo donde indica Game
+        let gapTop = gapTopRow;              // guarda la fila donde empieza el hueco
+        do shape.clear();                    // vacia las franjas previas (se reutiliza el objeto)
+        if (gapTop > topY) {                 // si hay espacio entre el techo y el hueco...
+            do shape.add(0, width - 1, topY, gapTop - 1);   // ...crea la franja SUPERIOR
+        }
+        if ((gapTop + gapHeight) < (botY + 1)) {            // si hay espacio entre el hueco y el suelo...
+            do shape.add(0, width - 1, gapTop + gapHeight, botY);  // ...crea la franja INFERIOR
+        }
+        let active = true;                   // la pared pasa a estar en juego
+        return;                              // fin de la preparacion
+    }
+
+    /** Pinta la pared completa (sin movimiento). */
+    method void draw(Renderer r) {
+        do shape.draw(r, x);   // dibuja las dos franjas con su borde izquierdo en x
+        return;                // fin del dibujo
+    }
+
+    /**
+     * Desplaza la pared dx columnas. Al salir por completo de la pantalla
+     * en el sentido del movimiento se desactiva.
+     */
+    method void move(int dx, Renderer r) {
+        do shape.move(r, x, dx);                                  // mueve las franjas pintando solo los bordes
+        let x = x + dx;                                           // actualiza la columna de la pared
+        if ((dx < 0) & ((x + width) < 0)) { let active = false; } // salio por la izquierda: se desactiva
+        if ((dx > 0) & (x > 511)) { let active = false; }         // salio por la derecha: se desactiva
+        return;                                                   // fin del movimiento
+    }
+
+    /**
+     * Colision con el cubo (px, py, lado s). Choca si el cubo solapa en X
+     * con la pared Y ademas toca la franja de ARRIBA o la de ABAJO del
+     * hueco. Si esta dentro del hueco en vertical, pasa limpio.
+     */
+    method boolean hits(int px, int py, int s) {
+        var boolean inX;                                 // hay solapamiento horizontal?
+        if (~active) { return false; }                   // pared inactiva: no colisiona
+        let inX = (px < (x + width)) & ((px + s) > x);   // el cubo se cruza en X con el muro
+        if (~inX) { return false; }                      // si no se cruza en X, no hay choque
+        if (py < gapTop) { return true; }                // el cubo sobresale por ENCIMA del hueco: choca
+        if ((py + s) > (gapTop + gapHeight)) { return true; } // sobresale por DEBAJO del hueco: choca
+        return false;                                    // esta dentro del hueco: pasa limpio
+    }
+
+    /** Lo saca de juego (por ejemplo al cruzar un portal). */
+    method void deactivate() {
+        let active = false;   // marca la pared como inactiva
+        return;               // fin
+    }
+
+    method void dispose() {
+        do shape.dispose();      // libera las franjas
+        do Memory.deAlloc(this); // libera el propio objeto Wall
+        return;                  // fin
+    }
+}

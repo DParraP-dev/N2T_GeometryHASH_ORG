@@ -30,6 +30,8 @@ class Game {
     field Random rng;             // varia pinchos y distancias
     field int gap;                // px de mundo que faltan para el siguiente grupo
     field Portal portal;          // aro de transicion entre etapas
+    field Array wallPool;         // pool fijo de Wall (paredes de las fases de nave)
+    field int wallPoolSize;       // cantidad de paredes reutilizables en el pool
     field int stage;              // etapa actual (1, 2, 3...)
     field int spawned;            // grupos de pinchos generados en esta etapa
     field int perStage;           // grupos antes de que aparezca el portal
@@ -70,6 +72,13 @@ class Game {
             let i = i + 1;
         }
         let portal = Portal.new(ceilY + 5, floorY - 5);   // ocupa toda la zona de juego
+        let wallPoolSize = 3;                     // paredes simultaneas en las fases de nave
+        let wallPool = Array.new(wallPoolSize);   // reserva el arreglo del pool (una sola vez)
+        let i = 0;                                // indice para recorrer el pool
+        while (i < wallPoolSize) {                // crea cada pared del pool...
+            let wallPool[i] = Wall.new(ceilY + 1, floorY - 1);  // ...muro entre fila 22 y 231 (zona de juego)
+            let i = i + 1;                        // avanza al siguiente hueco del pool
+        }
         let perStage = 5;
         let tickDelay = 30;                      // ~33 fps aprox.
         do reset(seed);
@@ -87,8 +96,9 @@ class Game {
         let stage = 1;
         let bannerTimer = 0;
         let score = 0;
-        let speed = 4;
+        let speed = 5;
         let running = true;
+        do updateFlightMode();   // la etapa 1 arranca en modo salto
         return;
     }
 
@@ -102,7 +112,6 @@ class Game {
 
         while (running) {
             do tickBanner();
-            do handleInput();
             do updateWorld();
             do render();
             do Sys.wait(tickDelay);   // ritmo del juego (y sensacion de fluidez)
@@ -112,9 +121,16 @@ class Game {
         return;
     }
 
-    /** Lectura NO bloqueante del teclado (ver Input). */
-    method void handleInput() {
-        if (Input.isJump()) { do player.jump(); }
+    /**
+     * Aplica el input al cubo segun el modo. En modo salto, una pulsacion
+     * inicia un salto (evento puntual). En modo nave la tecla se consume
+     * dentro de player.update() como propulsion continua, asi que aqui no
+     * se hace nada. El teclado se lee UNA sola vez por tick en updateWorld.
+     */
+    method void applyInput(boolean jumpHeld) {
+        if (~player.isFlying()) {
+            if (jumpHeld) { do player.jump(); }
+        }
         return;
     }
 
@@ -122,8 +138,12 @@ class Game {
     method void updateWorld() {
         var int i;
         var Spikes s;
+        var Wall w;                             // pared auxiliar para recorrer el pool de muros
+        var boolean jumpHeld;
 
-        do player.update();                     // integra gravedad/salto
+        let jumpHeld = Input.isJump();          // lectura NO bloqueante, una vez por tick
+        do applyInput(jumpHeld);                // salto (modo normal)
+        do player.update(jumpHeld);             // integra fisica: salto o nave
         do scenery.scroll(speed * dir, renderer);
 
         // Mover los pinchos activos (se desactivan solos al salir).
@@ -133,15 +153,26 @@ class Game {
             if (s.isActive()) { do s.move(speed * dir, renderer); }
             let i = i + 1;
         }
+        // Mover las paredes activas (se desactivan solas al salir de pantalla).
+        let i = 0;                              // reinicia el indice para el pool de paredes
+        while (i < wallPoolSize) {              // recorre todas las paredes...
+            let w = wallPool[i];                // toma la pared i
+            if (w.isActive()) { do w.move(speed * dir, renderer); }  // si esta en juego, la desplaza
+            let i = i + 1;                      // avanza a la siguiente
+        }
         if (portal.isActive()) { do portal.move(speed * dir, renderer); }
 
         // Tras 'perStage' grupos aparece el portal; mientras esta en
         // pantalla no se generan pinchos.
         let gap = gap - speed;
         if ((gap < 1) & (bannerTimer = 0) & ~portal.isActive()) {
-            if (spawned < perStage) {
-                do spawnSpikes();
-            } else {
+            if (spawned < perStage) {               // aun faltan obstaculos antes del portal
+                if (player.isFlying()) {            // fase de nave: salen PAREDES
+                    do spawnWall();
+                } else {                            // fase normal: salen los PINCHOS de siempre
+                    do spawnSpikes();
+                }
+            } else {                                // ya salieron todos: aparece el portal
                 do portal.spawn(spawnX(portal.getWidth()));
             }
         }
@@ -191,6 +222,35 @@ class Game {
         return;
     }
 
+    /**
+     * Genera una pared en el borde de entrada (fases de nave), reutilizando
+     * una pared libre del pool. El hueco se sortea al azar y se ACOTA a la
+     * zona jugable con margen de 16 px arriba y abajo, de modo que siempre
+     * sea atravesable. En vuelo no se salta, asi que la separacion entre
+     * paredes es mas corta y constante que la de los pinchos.
+     */
+    method void spawnWall() {
+        var int i, gapTopRow, lo, range;        // indice, fila del hueco y limites del sorteo
+        var Wall w;                             // pared del pool que vamos a usar
+        let i = 0;                              // empieza a buscar desde la primera pared
+        while (i < wallPoolSize) {              // recorre el pool buscando una libre...
+            let w = wallPool[i];                // toma la pared i
+            if (~w.isActive()) {                // si esta libre, la usamos
+                let lo = (ceilY + 1) + 16;      // fila minima del hueco: tope de juego + margen (38)
+                let range = ((floorY - 1) - 16) - w.getGapHeight() - lo + 1;  // nro de filas posibles (133)
+                let gapTopRow = lo + rng.below(range);   // sortea el borde superior del hueco y lo acota
+                do w.spawn(spawnX(w.getWidth()), gapTopRow);   // crea la pared fuera de pantalla con ese hueco
+                let spawned = spawned + 1;      // cuenta un obstaculo mas en esta fase
+                // Separacion en vuelo: ancho de la pared + un tramo fijo + extra aleatorio.
+                let gap = (w.getWidth() + (speed * 20)) + (24 + rng.below(60));  // distancia hasta la proxima
+                return;                         // pared colocada: salimos
+            }
+            let i = i + 1;                      // esa estaba ocupada: prueba la siguiente
+        }
+        let gap = 16;   // pool lleno: reintentar pronto (igual que spawnSpikes)
+        return;
+    }
+
     /** Cuenta atras del cartel de fase; al llegar a 0 lo borra. */
     method void tickBanner() {
         if (bannerTimer > 0) {
@@ -222,13 +282,29 @@ class Game {
     method void enterPortal() {
         let score = score + 1;
         let stage = stage + 1;
-        if (speed < 10) { let speed = speed + 1; }   // cada etapa es mas rapida
+        if (speed < 12) { let speed = speed + 1; }   // cada etapa es mas rapida (tope seguro)
         do renderer.toggleInvert();
         let roof = ~roof;
         let dir = -dir;
         do player.flip(cubeColumn());
+        do updateFlightMode();        // activa modo nave en etapas multiplo de 5
         do clearWorld();              // los pinchos ya superados desaparecen
         do drawStaticScene();         // el respiro lo da el cartel de fase
+        return;
+    }
+
+    /**
+     * Decide el modo del cubo segun la etapa: las etapas multiplo de 5
+     * (5, 10, 15...) son FASES DE NAVE (vuelo tipo Geometry Dash); el resto
+     * usan el salto clasico. Jack no tiene operador modulo, asi que el
+     * "stage mod 5" se calcula como stage - ((stage / 5) * 5), igual que en
+     * Random. Mientras no haya obstaculos de nave, estas fases sirven para
+     * probar el vuelo de forma aislada.
+     */
+    method void updateFlightMode() {
+        var boolean fly;
+        let fly = ((stage - ((stage / 5) * 5)) = 0);
+        do player.setFlying(fly);
         return;
     }
 
@@ -242,6 +318,7 @@ class Game {
     method void clearWorld() {
         var int i;
         var Spikes s;
+        var Wall w;   // pared auxiliar para recorrer el pool de muros
         let i = 0;
         while (i < poolSize) {
             let s = pool[i];
@@ -249,6 +326,12 @@ class Game {
             let i = i + 1;
         }
         do portal.deactivate();
+        let i = 0;                        // reinicia el indice para el pool de paredes
+        while (i < wallPoolSize) {        // recorre todas las paredes...
+            let w = wallPool[i];          // toma la pared i del pool
+            do w.deactivate();            // la saca de juego (al cambiar de fase)
+            let i = i + 1;                // avanza a la siguiente
+        }
         let spawned = 0;
         let gap = 0;
         return;
@@ -261,18 +344,27 @@ class Game {
     method boolean collides() {
         var int i, px, py, ps;
         var Spikes s;
-        let px = player.getX();
-        let py = player.getY();
-        let ps = player.getSize();
-        let i = 0;
-        while (i < poolSize) {
-            let s = pool[i];
-            if (s.hits(px, py, ps)) {
-                return true;
+        var Wall w;                       // pared auxiliar para recorrer el pool de muros
+        let px = player.getX();           // esquina X del cubo
+        let py = player.getY();           // esquina Y del cubo
+        let ps = player.getSize();        // lado del cubo
+        let i = 0;                        // indice del pool de pinchos
+        while (i < poolSize) {            // revisa colision contra cada grupo de pinchos...
+            let s = pool[i];              // toma el grupo i
+            if (s.hits(px, py, ps)) {     // si el cubo toca estos pinchos...
+                return true;              // ...hay colision: fin de partida
             }
-            let i = i + 1;
+            let i = i + 1;                // siguiente grupo
         }
-        return false;
+        let i = 0;                        // reinicia el indice para el pool de paredes
+        while (i < wallPoolSize) {        // revisa colision contra cada pared (fases de nave)...
+            let w = wallPool[i];          // toma la pared i
+            if (w.hits(px, py, ps)) {     // si el cubo toca una franja de la pared...
+                return true;              // ...hay colision: fin de partida
+            }
+            let i = i + 1;                // siguiente pared
+        }
+        return false;                     // no toco nada: sigue vivo
     }
 
     /** Dibuja elementos fijos de la escena (suelo) y limpia el fondo. */
@@ -310,6 +402,7 @@ class Game {
     method void dispose() {
         var int i;
         var Spikes s;
+        var Wall w;   // pared auxiliar para liberar el pool de muros
         let i = 0;
         while (i < poolSize) {
             let s = pool[i];
@@ -317,6 +410,13 @@ class Game {
             let i = i + 1;
         }
         do pool.dispose();
+        let i = 0;                        // reinicia el indice para liberar paredes
+        while (i < wallPoolSize) {        // recorre el pool de paredes...
+            let w = wallPool[i];          // toma la pared i
+            do w.dispose();               // libera la pared (y sus franjas Strips)
+            let i = i + 1;                // avanza a la siguiente
+        }
+        do wallPool.dispose();            // libera el arreglo del pool
         do portal.dispose();
         do rng.dispose();
         do player.dispose();

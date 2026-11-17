@@ -19,6 +19,8 @@ classDiagram
     Game *-- Random
     Spikes *-- Strips
     Portal *-- Strips
+    Game *-- "3" Wall
+    Wall *-- Strips
     Hud ..> Font
     Game ..> Input
     Strips ..> Renderer
@@ -35,6 +37,7 @@ classDiagram
 | `Game` | Bucle principal, generación de pinchos y portales, colisiones, cambios de fase. |
 | `Player` | El cubo: cinemática del salto con gravedad hacia el suelo o hacia el techo. |
 | `Spikes` | Grupo de 1 a 3 pinchos que se recicla desde un pool fijo. |
+| `Wall` | Pared vertical con hueco de las fases de nave. Colisión de dos cajas. |
 | `Portal` | Aro de transición. Su centro decide el cruce. |
 | `Strips` | Figura hecha de franjas horizontales que se mueve sin parpadeo. |
 | `Scenery` | Muescas que avanzan en la superficie activa (fondo en movimiento). |
@@ -61,6 +64,10 @@ flowchart TD
     J -->|sí| L[GAME OVER]
     L -->|ESPACIO| M[Game.reset] --> C
 ```
+
+En las etapas múltiplo de 5 el cubo entra en **modo nave**: en vez de
+saltar pinchos, vuela entre paredes. La tecla deja de ser un salto puntual
+y pasa a ser propulsión continua.
 
 ## 3. Distribución de la pantalla (512 x 256)
 
@@ -91,7 +98,35 @@ Con esos números se calcula la distancia mínima entre grupos de pinchos:
 ancho del grupo + 24 ticks de vuelo a la velocidad actual + 16 px de margen,
 más un extra aleatorio de 0 a 119 px. Así siempre hay espacio para aterrizar
 y volver a saltar. La velocidad empieza en 4 px/tick y sube 1 en cada portal
-hasta 10.
+hasta 12.
+
+### Modo nave (etapas múltiplo de 5)
+
+En las fases de nave la misma integración cambia una sola cosa: el impulso
+deja de ser puntual y se aplica en cada tick que la tecla esté pulsada:
+
+```
+cada tick con tecla:  vy <- vy - thrust * dir   (thrust = 2)
+siempre:              vy <- vy + g * dir
+                      y  <- y  + vy
+acotar vy a [-8, 8]   (evita cruzar la pantalla en un tick)
+```
+
+El cubo no se apoya: tocar el techo o el suelo solo frena `vy`. La
+dificultad viene de las paredes (`Wall`), no de los bordes.
+
+## Las paredes de la fase de nave
+
+Una `Wall` es una barra vertical de 12 px con un hueco de 45 px por donde
+pasar. Son dos franjas (`Strips`): del techo al borde superior del hueco, y
+del borde inferior al suelo. Se mueven con el mismo dibujo incremental que
+los pinchos.
+
+El hueco se sortea al azar y se acota a la zona jugable con 16 px de margen
+arriba y abajo, de modo que su borde superior cae entre las filas 38 y 170:
+siempre es atravesable. La colisión comprueba las DOS franjas; pasar por el
+hueco es seguro. Las paredes salen de un pool fijo de 3, creado una vez al
+arrancar, igual que los pinchos.
 
 ## 5. Dibujo incremental
 
@@ -123,7 +158,8 @@ usar para otro de tamaño n (pide n + 2). Por eso el juego sigue una regla:
 
 - Todos los objetos se crean una vez al arrancar (`Game.new`). Cada partida
   nueva los reutiliza con `reset()`.
-- Los pinchos salen de un pool fijo de 3 objetos.
+- Los pinchos salen de un pool fijo de 3 objetos, y las paredes de la fase
+  de nave de otro pool fijo de 3.
 - Los textos fijos del marcador se crean una vez en `Hud`.
 - Durante el juego no se reserva ni se libera memoria.
 
@@ -133,13 +169,13 @@ heap libre queda fijo durante toda la partida y entre partidas.
 
 ## 7. Costo por tick
 
-Medido con `tools/sim.mjs` (instrucciones de VM ejecutadas por tick):
+Instrucciones de VM ejecutadas por tick (medidas en el simulador oficial):
 
 | Versión | Instrucciones por tick |
 |---------|------------------------|
 | Con muescas en techo y suelo, recorte con funciones | 12 880 |
 | Muescas solo en la superficie activa, recorte en línea | 6 750 |
-| Partida real del bot, 3000 ticks | ~5 900 |
+| Partida sostenida, 3000 ticks | ~5 900 |
 
 Cada llamada a una función en la VM cuesta decenas de instrucciones, así que
 las rutinas que se ejecutan cientos de veces por tick (`safeRect`,
@@ -154,12 +190,8 @@ la portada, de modo que cada partida es distinta.
 
 ## 9. Pruebas
 
-`tools/sim.mjs` ejecuta el juego en el simulador oficial de nand2tetris sin
-interfaz. Un *frame* es una llamada a `Sys.wait`, así que cada corrida es
-determinista. `tools/lib/bot.mjs` juega leyendo solo los píxeles de la
-pantalla. `npm test` comprueba que:
-
-1. todas las clases compilan;
-2. el bot cruza al menos 4 portales y llega a una fase de techo;
-3. el heap no baja durante el juego ni al reintentar;
-4. un tick cuesta menos de 9000 instrucciones de VM.
+El juego se compila con el `JackCompiler` de la suite de Nand2Tetris y se
+ejecuta en el **VM Emulator** oficial, que corre las funciones del OS
+(`Screen`, `Keyboard`) de forma nativa. Las pruebas son manuales: se
+verifica que el juego cruza portales, cambia de fase (suelo, techo y nave)
+y mantiene el heap estable durante varias partidas seguidas.

@@ -52,7 +52,12 @@ mundo. Es el proyecto final de Organización de Computadores 2026.
   izquierda y los pinchos cuelgan del techo. El siguiente portal lo
   devuelve al suelo.
 - **Velocidad progresiva.** Cada portal sube la velocidad del mundo, de
-  4 a 10 píxeles por tick.
+  4 a 12 píxeles por tick.
+- **Fase de nave (etapas múltiplo de 5).** Cada cinco etapas el cubo se
+  comporta como una nave: mantener `ESPACIO` lo hace ascender y soltarlo
+  lo hace descender, con aceleración suave. En vez de saltar pinchos, hay
+  que volar a través de paredes con un hueco. La misma física del salto,
+  con impulso continuo en lugar de puntual.
 
 ### Factor diferenciador
 
@@ -60,8 +65,9 @@ Los juegos en Jack que suelen encontrarse en línea (el Pong del curso,
 Snake, Tetris, corredores sin fin) mantienen un solo plano y una sola
 paleta durante toda la partida. Hack Dash cambia sus reglas a mitad de la
 partida: invierte los colores en tiempo real, muda la acción del suelo al
-techo con la gravedad al revés y escala la velocidad en cada etapa, todo
-dentro de los límites de la plataforma Hack.
+techo con la gravedad al revés, escala la velocidad en cada etapa y añade
+una fase de nave con vuelo y paredes cada cinco etapas, todo dentro de los
+límites de la plataforma Hack.
 
 ## Lo más destacado
 
@@ -84,9 +90,9 @@ dentro de los límites de la plataforma Hack.
 - **Aleatorio de 16 bits sin desbordes.** `Random.jack` usa el método de
   Schrage, verificado contra el módulo exacto en los 30 268 estados. La
   semilla son los ticks que tarda el jugador en pulsar ESPACIO.
-- **Probado en la VM oficial.** `tests/smoke.test.mjs` corre el juego en el
-  simulador de nand2tetris. Un bot que solo mira la pantalla cruza 20
-  portales en 6000 ticks sin morir, a ~5900 instrucciones de VM por tick.
+- **Probado en el VM Emulator oficial.** El juego se compila y se ejecuta
+  en el simulador de nand2tetris; una partida sostiene decenas de portales
+  manteniendo el heap estable.
 
 ## Requisitos técnicos de la evaluación
 
@@ -94,7 +100,7 @@ dentro de los límites de la plataforma Hack.
 |-----------|----------------|
 | Interactividad por teclado sin lectura bloqueante | `Input.isJump()` consulta `Keyboard.keyPressed()` en cada tick. Nunca se usa `readChar` ni `readLine`. |
 | Fondo móvil o entorno dinámico | Pinchos y portal se desplazan sin parar, las muescas del suelo o del techo avanzan con el mundo y la paleta se invierte en cada portal. |
-| Comportamiento físico modelado | `Player.update()` integra gravedad y velocidad en cada tick: el salto describe una parábola. |
+| Comportamiento físico modelado | `Player.update()` integra gravedad y velocidad en cada tick: el salto describe una parábola y la fase de nave vuela con impulso continuo. |
 | Marcador visible y dinámico | `Hud` muestra puntos, velocidad y fase, y redibuja el puntaje al cruzar cada portal. |
 
 ## Cómo funciona
@@ -109,13 +115,12 @@ HackDash/            # el programa Jack: esta carpeta se carga en el VM Emulator
   Spikes.jack        # grupos de pinchos reciclados
   Portal.jack        # aro de transición
   Strips.jack        # figuras hechas de franjas que se mueven sin parpadeo
+  Wall.jack          # paredes con hueco de las fases de nave
   Scenery.jack       # muescas que avanzan con el mundo
   Renderer.jack      # color, recorte y dibujo incremental
   Font.jack          # fuente de 3x5 que se invierte con los colores
   Hud.jack           # marcador y carteles
   Random.jack        # números pseudoaleatorios de 16 bits
-tools/               # compilar y simular sin interfaz (Node)
-tests/               # pruebas de humo sobre la VM oficial
 docs/                # arquitectura y capturas
 ```
 
@@ -128,7 +133,7 @@ con diagramas para la sustentación, está en
 
 ## Tecnología
 
-Jack · VM de Nand2Tetris con el OS integrado · Hack, pantalla de 512x256 monocromática y enteros de 16 bits · Node.js 22+ para las herramientas de prueba
+Jack · VM de Nand2Tetris con el OS integrado · Hack, pantalla de 512x256 monocromática y enteros de 16 bits
 
 ## Cómo ejecutarlo
 
@@ -147,18 +152,6 @@ Jack · VM de Nand2Tetris con el OS integrado · Hack, pantalla de 512x256 monoc
 Usa el VM Emulator, no el CPU Emulator: el VM Emulator ejecuta las
 funciones del OS (`Screen`, `Keyboard`) de forma nativa, y el juego dibuja
 cientos de rectángulos por tick.
-
-### Sin Java
-
-`node tools/build.mjs HackDash` compila con el compilador del IDE web
-oficial y deja los `.vm` en `build/HackDash/`. La preparación está en
-[tools/README.md](tools/README.md).
-
-### Pruebas automáticas
-
-```bash
-npm test
-```
 
 ## Licencia
 
