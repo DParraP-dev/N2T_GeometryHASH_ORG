@@ -1,0 +1,140 @@
+// ============================================================================
+//  GeometryHash  -  Juego "Hack Dash"
+//  Organizacion de Computadores - 2026
+//
+//  Archivo : Starfield.jack
+//  Clase   : Starfield
+//  Rol     : Fondo en movimiento con paralaje. Dos capas de estrellas cruzan
+//            la zona de juego mas despacio que el mundo: las lejanas son un
+//            pixel a 1/4 de la velocidad y las cercanas son trazos de 8 px a
+//            1/2 de la velocidad. La diferencia de ritmos da profundidad.
+//
+//  Las estrellas se dibujan con XOR directo sobre la memoria de pantalla:
+//  invertir dos veces el mismo pixel lo deja como estaba. Game las OCULTA al
+//  empezar el tick (la pantalla queda exactamente como sin estrellas), mueve
+//  y dibuja todo lo demas, y las MUESTRA al final. Asi nunca dejan huecos en
+//  pinchos, portal o cubo, y con los colores invertidos salen solas en el
+//  color contrario.
+//
+//  Memoria de pantalla Hack: la fila y empieza en 16384 + 32 * y; cada
+//  palabra cubre 16 columnas y el bit 0 es la columna mas a la izquierda.
+// ============================================================================
+
+class Starfield {
+
+    field Array col, pos;     // palabra de pantalla (0..31) y columna dentro de ella (0..15)
+    field Array row;          // desplazamiento de la fila: 32 * y
+    field Array addr, mask;   // palabra y bits que se invirtieron al mostrarla
+    field Array bit;          // bit[k] = 2^k (bit 15 = signo)
+    field Array streak;       // streak[c] = 8 bits alineados que contienen la columna c
+    field Array screen;       // memoria de pantalla (empieza en 16384)
+    field int count;          // total de estrellas
+    field int far;            // las primeras 'far' son lejanas; el resto, cercanas
+    field boolean shown;      // true si las estrellas estan pintadas ahora mismo
+
+    constructor Starfield new(Random rng) {
+        var int i;
+        let count = 18;
+        let far = 10;
+        let screen = 16384;
+        let col = Array.new(count);
+        let pos = Array.new(count);
+        let row = Array.new(count);
+        let addr = Array.new(count);
+        let mask = Array.new(count);
+        let bit = Array.new(16);
+        let streak = Array.new(16);
+        let bit[0] = 1;
+        let i = 1;
+        while (i < 16) {
+            let bit[i] = bit[i - 1] + bit[i - 1];   // en i = 15 desborda a -32768: el bit de signo
+            let i = i + 1;
+        }
+        let i = 0;
+        while (i < 16) {
+            let streak[i] = 255;                             // columnas 0..7 de la palabra
+            if (i > 7) { let streak[i] = -256; }             // columnas 8..15 (bits altos)
+            let i = i + 1;
+        }
+        let i = 0;
+        while (i < count) {
+            let col[i] = rng.below(32);
+            let pos[i] = rng.below(16);
+            let row[i] = (26 + rng.below(202)) * 32;   // zona de juego: filas 26..227
+            let i = i + 1;
+        }
+        let shown = false;
+        return this;
+    }
+
+    /** La pantalla se acaba de limpiar: las estrellas ya no estan pintadas. */
+    method void forget() {
+        let shown = false;
+        return;
+    }
+
+    /**
+     * Quita las estrellas, dejando la pantalla como estaba antes de
+     * mostrarlas. El XOR va en linea, sin llamadas: corre en cada tick.
+     */
+    method void hide() {
+        var int i, a, v, m;
+        if (shown) {
+            let i = 0;
+            while (i < count) {
+                let a = addr[i];
+                let m = mask[i];
+                let v = screen[a];
+                let screen[a] = (v | m) & (~(v & m));
+                let i = i + 1;
+            }
+            let shown = false;
+        }
+        return;
+    }
+
+    /**
+     * Avanza las estrellas segun la velocidad del mundo (speed px/tick en el
+     * sentido dir) y las vuelve a pintar. La columna se guarda como
+     * (palabra, bit) para no dividir entre 16 en cada tick.
+     */
+    method void show(int speed, int dir) {
+        var int i, p, c, a, v, m, step, nearStep, farStep;
+        let nearStep = (speed / 2) * dir;
+        let farStep = (speed / 4) * dir;
+        if (farStep = 0) { let farStep = dir; }
+        let i = 0;
+        while (i < count) {
+            if (i < far) { let step = farStep; } else { let step = nearStep; }
+            let p = pos[i] + step;
+            let c = col[i];
+            if (p > 15) { let p = p - 16; let c = c + 1; }   // |step| <= 7: a lo sumo una palabra
+            if (p < 0)  { let p = p + 16; let c = c - 1; }
+            if (c > 31) { let c = 0; }
+            if (c < 0)  { let c = 31; }
+            let pos[i] = p;
+            let col[i] = c;
+            let a = row[i] + c;
+            if (i < far) { let m = bit[p]; } else { let m = streak[p]; }
+            let addr[i] = a;
+            let mask[i] = m;
+            let v = screen[a];
+            let screen[a] = (v | m) & (~(v & m));
+            let i = i + 1;
+        }
+        let shown = true;
+        return;
+    }
+
+    method void dispose() {
+        do col.dispose();
+        do pos.dispose();
+        do row.dispose();
+        do addr.dispose();
+        do mask.dispose();
+        do bit.dispose();
+        do streak.dispose();
+        do Memory.deAlloc(this);
+        return;
+    }
+}
