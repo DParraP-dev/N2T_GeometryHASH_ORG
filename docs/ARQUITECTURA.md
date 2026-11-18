@@ -99,8 +99,8 @@ La altura máxima es 16 + 14 + ... + 2 = 72 px y el salto dura unos 16 ticks.
 Con esos números se calcula la distancia mínima entre grupos de pinchos:
 ancho del grupo + 18 ticks de vuelo a la velocidad actual + 16 px de margen,
 más un extra aleatorio de 0 a 119 px. Así siempre hay espacio para aterrizar
-y volver a saltar. La velocidad empieza en 7 px/tick y sube 1 en cada portal
-hasta 14.
+y volver a saltar. La velocidad empieza en 5 px/tick y sube 1 en cada portal
+hasta 20.
 
 ### Modo nave (etapas múltiplo de 5)
 

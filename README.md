@@ -52,7 +52,7 @@ mundo. Es el proyecto final de Organización de Computadores 2026.
   izquierda y los pinchos cuelgan del techo. El siguiente portal lo
   devuelve al suelo.
 - **Velocidad progresiva.** Cada portal sube la velocidad del mundo, de
-  7 a 14 píxeles por tick.
+  5 a 20 píxeles por tick.
 - **Fase de nave (etapas múltiplo de 5).** Cada cinco etapas el cubo se
   comporta como una nave: mantener `ESPACIO` lo hace ascender y soltarlo
   lo hace descender, con aceleración suave. En vez de saltar pinchos, hay
