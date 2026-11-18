@@ -98,7 +98,7 @@ class Game {
         let stage = 1;
         let bannerTimer = 0;
         let score = 0;
-        let speed = 7;
+        let speed = 5;
         let running = true;
         do updateFlightMode();   // la etapa 1 arranca en modo salto
         return;
@@ -286,7 +286,7 @@ class Game {
     method void enterPortal() {
         let score = score + 1;
         let stage = stage + 1;
-        if (speed < 14) { let speed = speed + 1; }   // cada etapa es mas rapida (tope seguro)
+        if (speed < 20) { let speed = speed + 1; }   // cada etapa es mas rapida (tope seguro)
         do renderer.toggleInvert();
         let roof = ~roof;
         let dir = -dir;
@@ -380,7 +380,7 @@ class Game {
         do renderer.fillRect(0, floorY, 511, floorY + 3);   // suelo
         if (roof) { do scenery.setRow(ceilY - 2); } else { do scenery.setRow(floorY + 1); }
         do scenery.draw(renderer);
-        do hud.drawScene(score, speed - 6, stage, roof);
+        do hud.drawScene(score, speed - 4, stage, roof);
         do hud.drawBanner(stage, roof);
         let bannerTimer = 45;         // ~1.5 s sin pinchos para reaccionar
         return;

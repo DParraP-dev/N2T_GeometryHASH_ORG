@@ -171,7 +171,7 @@ class Starfield {
             if (i < far) { let step = farStep; } else { let step = nearStep; }
             let p = pos[i] + step;
             let c = col[i];
-            if (p > 15) { let p = p - 16; let c = c + 1; }   // |step| <= 7: a lo sumo una palabra
+            if (p > 15) { let p = p - 16; let c = c + 1; }   // |step| <= 10: a lo sumo una palabra
             if (p < 0)  { let p = p + 16; let c = c - 1; }
             if (c > 31) { let c = 0; }
             if (c < 0)  { let c = 31; }
