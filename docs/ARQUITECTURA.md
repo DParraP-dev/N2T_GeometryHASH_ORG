@@ -62,7 +62,7 @@ flowchart TD
     H -->|sí| I[+1 punto, invertir colores, cambiar de plano, +1 velocidad]
     I --> C
     H -->|no| J{¿Chocó?}
-    J -->|no| K[Redibujar cubo y esperar 30 ms] --> D
+    J -->|no| K[Redibujar cubo y esperar 15 ms] --> D
     J -->|sí| L[GAME OVER]
     L -->|ESPACIO| M[Game.reset] --> C
 ```
