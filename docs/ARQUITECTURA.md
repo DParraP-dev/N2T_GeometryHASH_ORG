@@ -13,6 +13,7 @@ classDiagram
     Game *-- Renderer
     Game *-- Hud
     Game *-- Scenery
+    Game *-- Starfield
     Game *-- Player
     Game *-- Portal
     Game *-- "3" Spikes
@@ -41,6 +42,7 @@ classDiagram
 | `Portal` | Aro de transición. Su centro decide el cruce. |
 | `Strips` | Figura hecha de franjas horizontales que se mueve sin parpadeo. |
 | `Scenery` | Muescas que avanzan en la superficie activa (fondo en movimiento). |
+| `Starfield` | Dos capas de estrellas en X con paralaje, dibujadas con XOR sobre la pantalla. |
 | `Renderer` | Única fuente del color. Recorta coordenadas y dibuja en incremental. |
 | `Font` | Fuente propia de 3x5 que se invierte con los colores. |
 | `Hud` | Marcador, velocidad, fase y carteles. |
@@ -88,17 +90,17 @@ y el mundo viaja hacia la derecha.
 Integración discreta por tick, con `dir = +1` en el suelo y `dir = -1` en el techo:
 
 ```
-vy <- vy + g * dir        g = 1 px/tick²
+vy <- vy + g * dir        g = 2 px/tick²
 y  <- y  + vy
-saltar: vy = -11 * dir    (solo si está apoyado)
+saltar: vy = -16 * dir    (solo si está apoyado)
 ```
 
-La altura máxima es 11 + 10 + ... + 1 = 66 px y el salto dura unos 22 ticks.
+La altura máxima es 16 + 14 + ... + 2 = 72 px y el salto dura unos 16 ticks.
 Con esos números se calcula la distancia mínima entre grupos de pinchos:
-ancho del grupo + 24 ticks de vuelo a la velocidad actual + 16 px de margen,
+ancho del grupo + 18 ticks de vuelo a la velocidad actual + 16 px de margen,
 más un extra aleatorio de 0 a 119 px. Así siempre hay espacio para aterrizar
-y volver a saltar. La velocidad empieza en 4 px/tick y sube 1 en cada portal
-hasta 12.
+y volver a saltar. La velocidad empieza en 7 px/tick y sube 1 en cada portal
+hasta 14.
 
 ### Modo nave (etapas múltiplo de 5)
 

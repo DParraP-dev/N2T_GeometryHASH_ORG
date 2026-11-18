@@ -52,7 +52,7 @@ mundo. Es el proyecto final de Organización de Computadores 2026.
   izquierda y los pinchos cuelgan del techo. El siguiente portal lo
   devuelve al suelo.
 - **Velocidad progresiva.** Cada portal sube la velocidad del mundo, de
-  4 a 12 píxeles por tick.
+  7 a 14 píxeles por tick.
 - **Fase de nave (etapas múltiplo de 5).** Cada cinco etapas el cubo se
   comporta como una nave: mantener `ESPACIO` lo hace ascender y soltarlo
   lo hace descender, con aceleración suave. En vez de saltar pinchos, hay
@@ -85,8 +85,8 @@ límites de la plataforma Hack.
   de 3x5 guardados en enteros de 15 bits, para que el texto también se
   invierta (el `Output` del OS pinta letras negras sobre celdas blancas).
 - **Las mismas ecuaciones para el suelo y el techo.** `Player.jack`
-  multiplica la gravedad y el impulso por `dir = ±1`. El salto sube 66 px
-  y dura unos 22 ticks.
+  multiplica la gravedad y el impulso por `dir = ±1`. El salto sube 72 px
+  y dura unos 16 ticks.
 - **Aleatorio de 16 bits sin desbordes.** `Random.jack` usa el método de
   Schrage, verificado contra el módulo exacto en los 30 268 estados. La
   semilla son los ticks que tarda el jugador en pulsar ESPACIO.
@@ -99,7 +99,7 @@ límites de la plataforma Hack.
 | Requisito | Cómo se cumple |
 |-----------|----------------|
 | Interactividad por teclado sin lectura bloqueante | `Input.isJump()` consulta `Keyboard.keyPressed()` en cada tick. Nunca se usa `readChar` ni `readLine`. |
-| Fondo móvil o entorno dinámico | Pinchos y portal se desplazan sin parar, las muescas del suelo o del techo avanzan con el mundo y la paleta se invierte en cada portal. |
+| Fondo móvil o entorno dinámico | Pinchos y portal se desplazan sin parar, las muescas del suelo o del techo avanzan con el mundo, dos capas de estrellas en forma de X cruzan el fondo con paralaje y la paleta se invierte en cada portal. |
 | Comportamiento físico modelado | `Player.update()` integra gravedad y velocidad en cada tick: el salto describe una parábola y la fase de nave vuela con impulso continuo. |
 | Marcador visible y dinámico | `Hud` muestra puntos, velocidad y fase, y redibuja el puntaje al cruzar cada portal. |
 
@@ -117,6 +117,7 @@ HackDash/            # el programa Jack: esta carpeta se carga en el VM Emulator
   Strips.jack        # figuras hechas de franjas que se mueven sin parpadeo
   Wall.jack          # paredes con hueco de las fases de nave
   Scenery.jack       # muescas que avanzan con el mundo
+  Starfield.jack     # estrellas con paralaje dibujadas con XOR
   Renderer.jack      # color, recorte y dibujo incremental
   Font.jack          # fuente de 3x5 que se invierte con los colores
   Hud.jack           # marcador y carteles

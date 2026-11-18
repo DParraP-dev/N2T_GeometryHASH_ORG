@@ -60,11 +60,11 @@ class Player {
         let y = floorY - size;  // apoyado justo encima del suelo
         let prevY = y;
         let vy = 0;
-        let gravity = 1;        // valores pequenos: la pantalla es de 256px
-        let jumpImpulse = 11;   // altura maxima = 11+10+...+1 = 66 px
+        let gravity = 2;        // caida rapida: el salto se siente seco, no flotante
+        let jumpImpulse = 16;   // altura maxima = 16+14+...+2 = 72 px, ~16 ticks en el aire
         let onGround = true;
         let flying = false;     // por defecto modo salto
-        let thrust = 2;         // empuje suave: aceleracion gradual, no instantanea
+        let thrust = 4;         // empuje neto = thrust - gravity: sube y baja al mismo ritmo
         let maxVy = 8;          // velocidad vertical maxima controlable
         return this;
     }

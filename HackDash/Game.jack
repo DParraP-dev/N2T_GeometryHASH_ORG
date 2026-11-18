@@ -24,6 +24,7 @@ class Game {
     field Renderer renderer;      // capa de dibujo + color actual
     field Hud hud;                // marcador y mensajes en pantalla
     field Scenery scenery;        // muescas de la superficie activa que avanzan con el mundo
+    field Starfield stars;        // estrellas con paralaje detras de la accion
     field Player player;          // el cubo del jugador
     field Array pool;             // pool fijo de Spikes (se reciclan)
     field int poolSize;
@@ -63,6 +64,7 @@ class Game {
         let hud = Hud.new(renderer);
         let scenery = Scenery.new(233);       // muescas dentro del suelo
         let rng = Random.new(seed);
+        let stars = Starfield.new(rng);         // antes de reset(): no altera la secuencia de pinchos
         let player = Player.new(64, floorY, ceilY, 16); // cubo fijo a la izquierda
         let poolSize = 3;                        // nunca hay mas de 3 en pantalla
         let pool = Array.new(poolSize);
@@ -96,7 +98,7 @@ class Game {
         let stage = 1;
         let bannerTimer = 0;
         let score = 0;
-        let speed = 5;
+        let speed = 7;
         let running = true;
         do updateFlightMode();   // la etapa 1 arranca en modo salto
         return;
@@ -111,9 +113,11 @@ class Game {
         do drawStaticScene();
 
         while (running) {
+            do stars.hide();          // pantalla limpia para mover y dibujar
             do tickBanner();
             do updateWorld();
             do render();
+            do stars.show(speed, dir);
             do Sys.wait(tickDelay);   // ritmo del juego (y sensacion de fluidez)
         }
 
@@ -212,8 +216,8 @@ class Game {
                 else      { do s.spawn(spawnX(count * 16), count, tall, floorY, true); }
                 let spawned = spawned + 1;
                 // Separacion minima = ancho del grupo + un salto completo
-                // (~24 ticks en el aire) + margen, mas un extra aleatorio.
-                let gap = (s.getWidth() + (speed * 24)) + (16 + rng.below(120));
+                // (~16 ticks en el aire) + margen, mas un extra aleatorio.
+                let gap = (s.getWidth() + (speed * 18)) + (16 + rng.below(120));
                 return;
             }
             let i = i + 1;
@@ -282,7 +286,7 @@ class Game {
     method void enterPortal() {
         let score = score + 1;
         let stage = stage + 1;
-        if (speed < 12) { let speed = speed + 1; }   // cada etapa es mas rapida (tope seguro)
+        if (speed < 14) { let speed = speed + 1; }   // cada etapa es mas rapida (tope seguro)
         do renderer.toggleInvert();
         let roof = ~roof;
         let dir = -dir;
@@ -370,12 +374,13 @@ class Game {
     /** Dibuja elementos fijos de la escena (suelo) y limpia el fondo. */
     method void drawStaticScene() {
         do renderer.clearBackground();
+        do stars.forget();            // el fondo limpio ya no tiene estrellas
         // Suelo: franja fina a lo ancho de la pantalla.
         do renderer.fillRect(0, ceilY - 3, 511, ceilY);     // techo
         do renderer.fillRect(0, floorY, 511, floorY + 3);   // suelo
         if (roof) { do scenery.setRow(ceilY - 2); } else { do scenery.setRow(floorY + 1); }
         do scenery.draw(renderer);
-        do hud.drawScene(score, speed - 3, stage, roof);
+        do hud.drawScene(score, speed - 6, stage, roof);
         do hud.drawBanner(stage, roof);
         let bannerTimer = 45;         // ~1.5 s sin pinchos para reaccionar
         return;
@@ -422,6 +427,7 @@ class Game {
         do player.dispose();
         do hud.dispose();
         do scenery.dispose();
+        do stars.dispose();
         do renderer.dispose();
         do Memory.deAlloc(this);
         return;
