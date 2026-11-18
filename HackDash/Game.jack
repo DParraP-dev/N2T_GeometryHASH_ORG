@@ -380,7 +380,7 @@ class Game {
         do renderer.fillRect(0, floorY, 511, floorY + 3);   // suelo
         if (roof) { do scenery.setRow(ceilY - 2); } else { do scenery.setRow(floorY + 1); }
         do scenery.draw(renderer);
-        do hud.drawScene(score, speed - 4, stage, roof);
+        do hud.drawScene(score, speed, stage, roof);
         do hud.drawBanner(stage, roof);
         let bannerTimer = 45;         // ~1.5 s sin pinchos para reaccionar
         return;
