@@ -34,12 +34,12 @@ class Hud {
     }
 
     /** Dibuja toda la interfaz de una escena recien limpiada. */
-    method void drawScene(int score, int level, int stage, boolean roof) {
+    method void drawScene(int score, int speed, int stage, boolean roof) {
         var int x;
         do Font.drawText(renderer, sPoints, 8, 4, 2);
         do drawScore(score);
         do Font.drawText(renderer, sSpeed, 400, 4, 2);
-        do Font.drawNumber(renderer, level, 478, 4, 2);
+        do Font.drawNumber(renderer, speed, 478, 4, 2);
         // Barra inferior: fase actual y control.
         let x = Font.drawText(renderer, sStage, 8, 242, 2);
         let x = Font.drawNumber(renderer, stage, x + 8, 242, 2);
