@@ -42,7 +42,7 @@ classDiagram
 | `Portal` | Aro de transición. Su centro decide el cruce. |
 | `Strips` | Figura hecha de franjas horizontales que se mueve sin parpadeo. |
 | `Scenery` | Muescas que avanzan en la superficie activa (fondo en movimiento). |
-| `Starfield` | Dos capas de estrellas con paralaje, dibujadas con XOR sobre la pantalla. |
+| `Starfield` | Dos capas de estrellas en X con paralaje, dibujadas con XOR sobre la pantalla. |
 | `Renderer` | Única fuente del color. Recorta coordenadas y dibuja en incremental. |
 | `Font` | Fuente propia de 3x5 que se invierte con los colores. |
 | `Hud` | Marcador, velocidad, fase y carteles. |

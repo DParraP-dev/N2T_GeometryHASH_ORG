@@ -99,7 +99,7 @@ límites de la plataforma Hack.
 | Requisito | Cómo se cumple |
 |-----------|----------------|
 | Interactividad por teclado sin lectura bloqueante | `Input.isJump()` consulta `Keyboard.keyPressed()` en cada tick. Nunca se usa `readChar` ni `readLine`. |
-| Fondo móvil o entorno dinámico | Pinchos y portal se desplazan sin parar, las muescas del suelo o del techo avanzan con el mundo, dos capas de estrellas cruzan el fondo con paralaje y la paleta se invierte en cada portal. |
+| Fondo móvil o entorno dinámico | Pinchos y portal se desplazan sin parar, las muescas del suelo o del techo avanzan con el mundo, dos capas de estrellas en forma de X cruzan el fondo con paralaje y la paleta se invierte en cada portal. |
 | Comportamiento físico modelado | `Player.update()` integra gravedad y velocidad en cada tick: el salto describe una parábola y la fase de nave vuela con impulso continuo. |
 | Marcador visible y dinámico | `Hud` muestra puntos, velocidad y fase, y redibuja el puntaje al cruzar cada portal. |
 
