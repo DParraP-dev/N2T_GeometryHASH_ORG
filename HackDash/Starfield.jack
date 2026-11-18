@@ -4,10 +4,17 @@
 //
 //  Archivo : Starfield.jack
 //  Clase   : Starfield
-//  Rol     : Fondo en movimiento con paralaje. Dos capas de estrellas cruzan
-//            la zona de juego mas despacio que el mundo: las lejanas son un
-//            pixel a 1/4 de la velocidad y las cercanas son trazos de 8 px a
-//            1/2 de la velocidad. La diferencia de ritmos da profundidad.
+//  Rol     : Fondo en movimiento con paralaje. Estrellas en forma de X cruzan
+//            la zona de juego mas despacio que el mundo: las lejanas miden
+//            3x3 px y van a 1/4 de la velocidad; las cercanas miden 5x5 px y
+//            van a 1/2. La diferencia de ritmos da profundidad.
+//
+//                lejana      cercana
+//                 # #       #   #
+//                  #         # #
+//                 # #         #
+//                            # #
+//                           #   #
 //
 //  Las estrellas se dibujan con XOR directo sobre la memoria de pantalla:
 //  invertir dos veces el mismo pixel lo deja como estaba. Game las OCULTA al
@@ -18,53 +25,76 @@
 //
 //  Memoria de pantalla Hack: la fila y empieza en 16384 + 32 * y; cada
 //  palabra cubre 16 columnas y el bit 0 es la columna mas a la izquierda.
+//  Cada fila de una X son 1 o 2 pixeles alrededor de la columna central;
+//  las tablas guardan, para cada columna central p (0..15), los bits que
+//  caen en la palabra propia y en las vecinas, sin desplazamientos en vivo.
 // ============================================================================
 
 class Starfield {
 
-    field Array col, pos;     // palabra de pantalla (0..31) y columna dentro de ella (0..15)
-    field Array row;          // desplazamiento de la fila: 32 * y
-    field Array addr, mask;   // palabra y bits que se invirtieron al mostrarla
+    field Array col, pos;     // palabra de pantalla (0..31) y columna central dentro de ella (0..15)
+    field Array row;          // direccion de la fila central: 16384 + 32 * y
     field Array bit;          // bit[k] = 2^k (bit 15 = signo)
-    field Array streak;       // streak[c] = 8 bits alineados que contienen la columna c
-    field Array screen;       // memoria de pantalla (empieza en 16384)
+    field Array outL, outM, outR;   // fila "#   #": bits en la palabra izquierda, propia y derecha
+    field Array inL, inM, inR;      // fila " # # "
+    field Array midM;               // fila "  #  " (nunca sale de la palabra)
+    field Array none;               // sin bits: vecinas de la fila central
+    field Array screen;       // memoria de pantalla
     field int count;          // total de estrellas
     field int far;            // las primeras 'far' son lejanas; el resto, cercanas
     field boolean shown;      // true si las estrellas estan pintadas ahora mismo
 
     constructor Starfield new(Random rng) {
         var int i;
-        let count = 18;
-        let far = 10;
-        let screen = 16384;
+        let count = 10;
+        let far = 5;
+        let screen = 0;
         let col = Array.new(count);
         let pos = Array.new(count);
         let row = Array.new(count);
-        let addr = Array.new(count);
-        let mask = Array.new(count);
         let bit = Array.new(16);
-        let streak = Array.new(16);
         let bit[0] = 1;
         let i = 1;
         while (i < 16) {
             let bit[i] = bit[i - 1] + bit[i - 1];   // en i = 15 desborda a -32768: el bit de signo
             let i = i + 1;
         }
+        let outL = Array.new(16); let outM = Array.new(16); let outR = Array.new(16);
+        let inL = Array.new(16);  let inM = Array.new(16);  let inR = Array.new(16);
+        let midM = Array.new(16);
+        let none = Array.new(16);
+        do fill(outL, outM, outR, 2);
+        do fill(inL, inM, inR, 1);
         let i = 0;
         while (i < 16) {
-            let streak[i] = 255;                             // columnas 0..7 de la palabra
-            if (i > 7) { let streak[i] = -256; }             // columnas 8..15 (bits altos)
+            let midM[i] = bit[i];
+            let none[i] = 0;
             let i = i + 1;
         }
         let i = 0;
         while (i < count) {
             let col[i] = rng.below(32);
             let pos[i] = rng.below(16);
-            let row[i] = (26 + rng.below(202)) * 32;   // zona de juego: filas 26..227
+            let row[i] = 16384 + ((28 + rng.below(198)) * 32);   // filas centrales 28..225
             let i = i + 1;
         }
         let shown = false;
         return this;
+    }
+
+    /** Tablas de la fila con pixeles en p - d y p + d. */
+    method void fill(Array left, Array mid, Array right, int d) {
+        var int p;
+        let p = 0;
+        while (p < 16) {
+            let left[p] = 0;
+            let mid[p] = 0;
+            let right[p] = 0;
+            if (p < d) { let left[p] = bit[(p - d) + 16]; } else { let mid[p] = bit[p - d]; }
+            if (p > (15 - d)) { let right[p] = bit[(p + d) - 16]; } else { let mid[p] = mid[p] | bit[p + d]; }
+            let p = p + 1;
+        }
+        return;
     }
 
     /** La pantalla se acaba de limpiar: las estrellas ya no estan pintadas. */
@@ -73,19 +103,52 @@ class Starfield {
         return;
     }
 
-    /**
-     * Quita las estrellas, dejando la pantalla como estaba antes de
-     * mostrarlas. El XOR va en linea, sin llamadas: corre en cada tick.
-     */
+    /** Invierte una fila de la X: la palabra propia y, en los bordes, la vecina. */
+    method void flipRow(int a, int c, int p, Array left, Array mid, Array right) {
+        var int m, v;
+        let m = mid[p];
+        let v = screen[a];
+        let screen[a] = (v | m) & (~(v & m));
+        if ((p < 2) & (c > 0)) {
+            let m = left[p];
+            let v = screen[a - 1];
+            let screen[a - 1] = (v | m) & (~(v & m));
+        }
+        if ((p > 13) & (c < 31)) {
+            let m = right[p];
+            let v = screen[a + 1];
+            let screen[a + 1] = (v | m) & (~(v & m));
+        }
+        return;
+    }
+
+    /** Invierte la estrella i en su posicion actual (dibujar = borrar). */
+    method void flipStar(int i) {
+        var int a, c, p;
+        let c = col[i];
+        let p = pos[i];
+        let a = row[i] + c;
+        if (i < far) {
+            do flipRow(a - 32, c, p, inL, inM, inR);
+            do flipRow(a, c, p, none, midM, none);
+            do flipRow(a + 32, c, p, inL, inM, inR);
+            return;
+        }
+        do flipRow(a - 64, c, p, outL, outM, outR);
+        do flipRow(a - 32, c, p, inL, inM, inR);
+        do flipRow(a, c, p, none, midM, none);
+        do flipRow(a + 32, c, p, inL, inM, inR);
+        do flipRow(a + 64, c, p, outL, outM, outR);
+        return;
+    }
+
+    /** Quita las estrellas, dejando la pantalla como estaba antes de mostrarlas. */
     method void hide() {
-        var int i, a, v, m;
+        var int i;
         if (shown) {
             let i = 0;
             while (i < count) {
-                let a = addr[i];
-                let m = mask[i];
-                let v = screen[a];
-                let screen[a] = (v | m) & (~(v & m));
+                do flipStar(i);
                 let i = i + 1;
             }
             let shown = false;
@@ -99,7 +162,7 @@ class Starfield {
      * (palabra, bit) para no dividir entre 16 en cada tick.
      */
     method void show(int speed, int dir) {
-        var int i, p, c, a, v, m, step, nearStep, farStep;
+        var int i, p, c, step, nearStep, farStep;
         let nearStep = (speed / 2) * dir;
         let farStep = (speed / 4) * dir;
         if (farStep = 0) { let farStep = dir; }
@@ -114,12 +177,7 @@ class Starfield {
             if (c < 0)  { let c = 31; }
             let pos[i] = p;
             let col[i] = c;
-            let a = row[i] + c;
-            if (i < far) { let m = bit[p]; } else { let m = streak[p]; }
-            let addr[i] = a;
-            let mask[i] = m;
-            let v = screen[a];
-            let screen[a] = (v | m) & (~(v & m));
+            do flipStar(i);
             let i = i + 1;
         }
         let shown = true;
@@ -130,10 +188,11 @@ class Starfield {
         do col.dispose();
         do pos.dispose();
         do row.dispose();
-        do addr.dispose();
-        do mask.dispose();
         do bit.dispose();
-        do streak.dispose();
+        do outL.dispose(); do outM.dispose(); do outR.dispose();
+        do inL.dispose();  do inM.dispose();  do inR.dispose();
+        do midM.dispose();
+        do none.dispose();
         do Memory.deAlloc(this);
         return;
     }
