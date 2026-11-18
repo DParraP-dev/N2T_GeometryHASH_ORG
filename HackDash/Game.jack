@@ -82,7 +82,7 @@ class Game {
             let i = i + 1;                        // avanza al siguiente hueco del pool
         }
         let perStage = 5;
-        let tickDelay = 30;                      // ~33 fps aprox.
+        let tickDelay = 15;                      // el doble de ticks por segundo que con 30 ms
         do reset(seed);
         return this;
     }
@@ -382,7 +382,7 @@ class Game {
         do scenery.draw(renderer);
         do hud.drawScene(score, speed, stage, roof);
         do hud.drawBanner(stage, roof);
-        let bannerTimer = 45;         // ~1.5 s sin pinchos para reaccionar
+        let bannerTimer = 60;         // ~1 s sin pinchos para reaccionar
         return;
     }
 
